@@ -1,0 +1,33 @@
+[project]
+name = "ai-news-aggregater"
+version = "0.1.0"
+description = "AI-powered news aggregator that fetches from various sources, categorizes, and emails summaries based on user interests"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "requests",
+    "beautifulsoup4",
+    "langchain-openai",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "apscheduler",
+    "python-dotenv",
+    "pytest",
+    "alembic",
+    "pydantic",
+    "feedparser>=6.0.12",
+    "youtube-transcript-api>=1.2.4",
+    "langchain>=1.2.18",
+    "dotenv>=0.9.9",
+    "jinja2>=3.1.6",
+]
+
+[project.optional-dependencies]
+video = ["youtube-transcript-api"]
+email = ["sendgrid"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
