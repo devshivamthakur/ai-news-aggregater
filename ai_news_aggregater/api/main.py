@@ -71,6 +71,7 @@ def create_app() -> FastAPI:
         title="AI News Aggregator",
         version="1.0.0",
         lifespan=lifespan,
+        openapi_url=None
     )
     application.add_middleware(
         CORSMiddleware,
