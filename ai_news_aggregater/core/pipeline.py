@@ -92,7 +92,14 @@ async def aggregate_and_email() -> None:
 
         from ai_news_aggregater.models import User
 
-        users = db.query(User).all()
+        users = (
+            db.query(User)
+            .filter(
+                User.is_active == 1,
+                User.digest_subscribed.is_(True),
+            )
+            .all()
+        )
 
         for user in users:
             try:

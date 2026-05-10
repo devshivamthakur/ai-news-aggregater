@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class SourceCreate(BaseModel):
@@ -56,3 +56,41 @@ class NewsOut(BaseModel):
     source: str | None
     url: str
     news_type: str
+
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    name: str = Field(min_length=1, max_length=512)
+
+    @field_validator("name")
+    @classmethod
+    def name_stripped(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Name is required")
+        return s
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserMeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    name: str | None
+    digest_subscribed: bool
+    interests: list[str] | None = None
+
+
+class SubscriptionUpdate(BaseModel):
+    digest_subscribed: bool

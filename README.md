@@ -1,10 +1,11 @@
 # AI News Aggregator
 
-Fetches AI-related news from RSS feeds and YouTube, summarizes and categorizes items with an LLM, stores them in PostgreSQL, and sends personalized email digests based on user interests. Scheduling is driven by environment variables (hourly window and optional daily job).
+Fetches AI-related news from RSS feeds and YouTube, summarizes and categorizes items with an LLM, stores them in PostgreSQL, and sends personalized email digests based on user interests. Scheduling is driven by environment variables (daily window in the configured timezone). Users can register and sign in with **JWT** so the companion web app can load their profile and manage digest subscription.
 
 ## Features
 
-- **FastAPI** service with health, sources, news, and job triggers (`/docs` OpenAPI)
+- **FastAPI** service with health, sources, news, auth, and job triggers (`/docs` OpenAPI)
+- **User accounts**: register, login, `GET /me`, and digest subscription toggle (stored in PostgreSQL)
 - RSS and YouTube ingestion from **`ingestion_sources` table** (no feed URLs in application code)
 - One-shot **sync** of bundled defaults into Postgres (`ai_news_aggregater/data/default_sources.py`)
 - **APScheduler** inside the API process: daily aggregation at `CUSTOM_FETCH_HOUR` (timezone-aware)
@@ -76,6 +77,8 @@ Defaults to upsert are defined only in `ai_news_aggregater/data/default_sources.
 
 ### 5. Run
 
+**Companion UI** — the React app lives in `../ai-news-web` (see that folder’s README). For local development, run the API on port **8000** and the UI with `npm run dev` (Vite proxies `/api` to the backend unless you set `VITE_API_URL`).
+
 **HTTP API (recommended for production)** — serves OpenAPI at `/docs`, runs the scheduler in-process when `SCHEDULER_ENABLED=true`:
 
 ```bash
@@ -126,7 +129,9 @@ The app service expects `DATABASE_URL` pointing at the `db` service (see `docker
 | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | Optional SendGrid | Optional extras |
 | `WEBSHARE_USERNAME`, `WEBSHARE_PASSWORD` | YouTube transcript proxy | Optional |
 | `ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` | Runtime / logging | `development`, `false`, `INFO` |
-| `API_KEY` | Protects POST/PATCH on `/api/v1/sources*`, `/api/v1/jobs/*` | Empty = no auth (dev only) |
+| `CORS_ORIGINS` | Comma-separated browser origins allowed by CORS | Default includes Vite dev (`http://localhost:5173`, …) |
+| `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Session tokens for `/api/v1/auth/*` | **Set a strong `JWT_SECRET_KEY` in production** |
+| `API_KEY` | Protects POST/PATCH on `/api/v1/sources*`, `/api/v1/jobs/*` | Empty = no admin key (dev only) |
 | `API_HOST`, `PORT` / `API_PORT` | Uvicorn bind | `0.0.0.0`, `8000` |
 | `SYNC_DEFAULT_SOURCES_ON_STARTUP` | Upsert default feeds/channels on API boot | `false` |
 | `AGGREGATION_LOOKBACK_HOURS` | RSS/YouTube lookback window | `24` |
@@ -140,6 +145,10 @@ Active feed URLs and channel IDs are stored in **`ingestion_sources`** (Postgres
 |--------|------|------|
 | GET | `/health` | — (shallow probe) |
 | GET | `/api/v1/health` | — |
+| POST | `/api/v1/auth/register` | — (returns JWT `access_token`) |
+| POST | `/api/v1/auth/login` | — (returns JWT `access_token`) |
+| GET | `/api/v1/auth/me` | `Authorization: Bearer <token>` |
+| PATCH | `/api/v1/auth/me/subscription` | Bearer (body: `{ "digest_subscribed": true \| false }`) |
 | GET | `/api/v1/sources` | — |
 | POST | `/api/v1/sources` | `X-API-Key` if `API_KEY` set |
 | PATCH | `/api/v1/sources/{id}` | `X-API-Key` if set |
@@ -161,8 +170,11 @@ OpenAPI UI: `http://localhost:8000/docs`
 
 | Path | Role |
 |------|------|
-| `ai_news_aggregater/api/main.py` | FastAPI app, lifespan, scheduler |
-| `ai_news_aggregater/api/routes.py` | HTTP routes |
+| `ai_news_aggregater/api/main.py` | FastAPI app, lifespan, scheduler, CORS |
+| `ai_news_aggregater/api/routes.py` | HTTP routes (sources, news, jobs) |
+| `ai_news_aggregater/api/auth_routes.py` | Register, login, profile, subscription |
+| `ai_news_aggregater/api/security.py` | Password hashing, JWT creation |
+| `ai_news_aggregater/models/user.py` | `User` model |
 | `ai_news_aggregater/core/pipeline.py` | `aggregate_and_email()` |
 | `ai_news_aggregater/data/default_sources.py` | Default rows for sync only |
 | `ai_news_aggregater/models/source.py` | `IngestionSource` model |

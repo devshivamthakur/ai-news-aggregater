@@ -80,7 +80,8 @@ class UserService:
         user = User(
             name=name,
             email=email,
-            interests=interests
+            interests=interests,
+            digest_subscribed=True,
         )
 
         db.add(user)

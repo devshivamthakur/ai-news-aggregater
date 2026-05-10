@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ai_news_aggregater.api.auth_routes import router as auth_router
 from ai_news_aggregater.api.deps import get_db, require_admin_key
 from ai_news_aggregater.api.schemas import (
     HealthOut,
@@ -24,6 +25,7 @@ from ai_news_aggregater.models import News
 from ai_news_aggregater.services.ingestion_source_service import IngestionSourceService
 
 router = APIRouter()
+router.include_router(auth_router, prefix="/auth")
 
 
 @router.get("/health", response_model=HealthOut, tags=["health"])

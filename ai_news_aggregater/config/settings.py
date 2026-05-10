@@ -76,6 +76,19 @@ class SchedulerConfig(BaseModel):
         frozen = True
 
 
+class JWTConfig(BaseModel):
+    """JWT settings for user sessions."""
+
+    secret_key: str = os.getenv("JWT_SECRET_KEY", "dev-insecure-change-me")
+    algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
+    access_token_expire_minutes: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+
+    class Config:
+        """Pydantic config."""
+
+        frozen = True
+
+
 class LoggingConfig(BaseModel):
     """Logging configuration."""
     level: str = os.getenv("LOG_LEVEL", "INFO")
@@ -106,6 +119,7 @@ class Settings(BaseModel):
     fetcher: FetcherConfig = FetcherConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
     logging: LoggingConfig = LoggingConfig()
+    jwt: JWTConfig = JWTConfig()
     
     # General settings
     environment: str = os.getenv("ENVIRONMENT", "development")
@@ -115,6 +129,11 @@ class Settings(BaseModel):
     api_key: Optional[str] = os.getenv("API_KEY", None)
     api_host: str = os.getenv("API_HOST", "0.0.0.0")
     api_port: int = int(os.getenv("PORT", os.getenv("API_PORT", "8000")))
+    cors_origins: tuple[str, ...] = tuple(
+        o.strip()
+        for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+        if o.strip()
+    )
     
     # Aggregation
     aggregation_lookback_hours: int = int(os.getenv("AGGREGATION_LOOKBACK_HOURS", "24"))
