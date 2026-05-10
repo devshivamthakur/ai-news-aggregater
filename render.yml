@@ -1,0 +1,10 @@
+services:
+  - type: cron
+    name: daily-digest-job
+    runtime: python
+    plan: free
+    schedule: "0 5 * * *"
+    buildCommand: |
+      pip install uv
+      uv sync
+    startCommand: uv run -m ai_news_aggregater.main

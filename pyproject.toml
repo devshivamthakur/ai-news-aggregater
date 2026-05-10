@@ -10,7 +10,6 @@ dependencies = [
     "langchain-openai",
     "sqlalchemy",
     "psycopg2-binary",
-    "apscheduler",
     "python-dotenv",
     "pytest",
     "alembic",
