@@ -130,12 +130,14 @@ class Settings(BaseModel):
     api_host: str = os.getenv("API_HOST", "0.0.0.0")
     api_port: int = int(os.getenv("PORT", os.getenv("API_PORT", "8000")))
     cors_origins: tuple[str, ...] = tuple(
-        o.strip()
-        for o in os.getenv(
-            "CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,https://devshivamthakur.github.io",
-        ).split(",")
-        if o.strip()
+        dict.fromkeys(
+            o.strip()
+            for o in os.getenv(
+                "CORS_ORIGINS",
+                "http://localhost:5173,http://127.0.0.1:5173,https://devshivamthakur.github.io",
+            ).split(",")
+            if o.strip()
+        )
     )
     
     # Aggregation
