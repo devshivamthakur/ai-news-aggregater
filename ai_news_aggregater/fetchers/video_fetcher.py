@@ -140,7 +140,6 @@ class YouTubeScraper:
             logger.debug(f"Processed video with transcript: {video.title[:50]}...")
 
         logger.info(f"Scraped {len(result)} videos from channel {channel_id}")
-        print(f"Scraped {len(result)} videos from channel {channel_id}")
         return result
 
 

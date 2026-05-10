@@ -111,6 +111,18 @@ class Settings(BaseModel):
     environment: str = os.getenv("ENVIRONMENT", "development")
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     
+    # HTTP API (FastAPI)
+    api_key: Optional[str] = os.getenv("API_KEY", None)
+    api_host: str = os.getenv("API_HOST", "0.0.0.0")
+    api_port: int = int(os.getenv("PORT", os.getenv("API_PORT", "8000")))
+    
+    # Aggregation
+    aggregation_lookback_hours: int = int(os.getenv("AGGREGATION_LOOKBACK_HOURS", "24"))
+    aggregation_rss_per_feed_limit: int = int(os.getenv("AGGREGATION_RSS_PER_FEED_LIMIT", "20"))
+    sync_default_sources_on_startup: bool = (
+        os.getenv("SYNC_DEFAULT_SOURCES_ON_STARTUP", "false").lower() == "true"
+    )
+    
     # API keys
     openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY", None)
     anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY", None)

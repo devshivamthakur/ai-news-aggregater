@@ -1,10 +1,9 @@
+# Web service: FastAPI + in-process APScheduler (daily aggregate at CUSTOM_FETCH_HOUR).
+# Optional: set SCHEDULER_ENABLED=false and use an external cron to POST /api/v1/jobs/aggregate with X-API-Key.
 services:
-  - type: cron
-    name: daily-digest-job
+  - type: web
+    name: ai-news-api
     runtime: python
     plan: free
-    schedule: "0 5 * * *"
-    buildCommand: |
-      pip install uv
-      uv sync
-    startCommand: uv run -m ai_news_aggregater.main
+    buildCommand: pip install uv && uv sync
+    startCommand: uv run uvicorn ai_news_aggregater.api.main:app --host 0.0.0.0 --port $PORT

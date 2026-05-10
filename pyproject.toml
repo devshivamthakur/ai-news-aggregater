@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "ai-news-aggregater"
 version = "0.1.0"
@@ -19,11 +23,20 @@ dependencies = [
     "langchain>=1.2.18",
     "dotenv>=0.9.9",
     "jinja2>=3.1.6",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "apscheduler>=3.10.0",
 ]
 
 [project.optional-dependencies]
 video = ["youtube-transcript-api"]
 email = ["sendgrid"]
+
+[project.scripts]
+run-api-and-scheduler = "ai_news_aggregater.run_stack:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ai_news_aggregater"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

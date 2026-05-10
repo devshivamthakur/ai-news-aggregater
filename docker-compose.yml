@@ -12,7 +12,11 @@ services:
 
   app:
     build: .
+    ports:
+      - "8000:8000"
     environment:
       DATABASE_URL: postgresql://user:password@db/ai_news
+      SCHEDULER_ENABLED: "true"
+      SYNC_DEFAULT_SOURCES_ON_STARTUP: "true"
     depends_on:
       - db

@@ -2,9 +2,9 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-COPY pyproject.toml .
+COPY . .
 RUN pip install --no-cache-dir -e .
 
-COPY . .
+EXPOSE 8000
 
-CMD ["python", "scripts/run_aggregator.py"]
+CMD ["uvicorn", "ai_news_aggregater.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
