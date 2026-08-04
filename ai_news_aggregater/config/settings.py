@@ -17,6 +17,14 @@ class DatabaseConfig(BaseModel):
     pool_timeout: int = int(os.getenv("DB_POOL_TIMEOUT", "30"))
     pool_recycle: int = int(os.getenv("DB_POOL_RECYCLE", "1800"))
     
+    @field_validator('url')
+    @classmethod
+    def validate_and_fix_url(cls, v: str) -> str:
+        """Fix postgres:// to postgresql:// for SQLAlchemy compatibility."""
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
+    
     class Config:
         """Pydantic config."""
         frozen = True
