@@ -32,25 +32,20 @@ class ContentResponse(BaseModel):
 
 class ContentAnalyzer:
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str | None = None, model: str = "gpt-4o-mini"):
 
         content_analyzer_model = os.getenv("CONTENT_ANALYZER_MODEL", model)
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        openai_api_key = os.getenv("OPENAI_API_KEY", api_key)
         base_url = os.getenv("OPENAI_BASE_URL")
-        logger.info(f"Initializing ContentAnalyzer with model: {content_analyzer_model}")      
+        logger.info(f"Initializing ContentAnalyzer with model: {content_analyzer_model}")
 
-        # LLM
-        self.llm = ChatOpenAI(
-            model=content_analyzer_model,
-    api_key=openai_api_key,
-    base_url=base_url,
-    temperature=0.3,
-    extra_body={
-       "chat_template_kwargs": {"enable_thinking": False},
-    }
-        )
+        self._api_key = openai_api_key
+        self._model = content_analyzer_model
+        self._base_url = base_url
 
-        logger.info(f"ContentAnalyzer LLM initialized with model: {content_analyzer_model}")
+        # The LLM is created lazily so importing this module works even when
+        # OPENAI_API_KEY is unset (e.g. running the API without analysis).
+        self._llm = None
 
         # Output Parser
         self.parser = PydanticOutputParser(
@@ -164,15 +159,33 @@ CONTENT:
             )
         ])
 
-        # =====================================================
-        # Chain
-        # =====================================================
+    # =====================================================
+    # Lazy LLM initialization
+    # =====================================================
 
-        self.chain = (
-            self.prompt
-            | self.llm
-            | self.parser
-        )
+    def _ensure_llm(self) -> ChatOpenAI:
+        """Build the LLM client on first use.
+
+        Requires OPENAI_API_KEY (or the key passed to __init__); raises a clear
+        error otherwise so callers know analysis is not configured.
+        """
+        if self._llm is None:
+            if not self._api_key:
+                raise RuntimeError(
+                    "ContentAnalyzer requires an OpenAI API key. Set OPENAI_API_KEY "
+                    "or pass api_key to the constructor before analyzing content."
+                )
+            self._llm = ChatOpenAI(
+                model=self._model,
+                api_key=self._api_key,
+                base_url=self._base_url,
+                temperature=0.3,
+                extra_body={
+                    "chat_template_kwargs": {"enable_thinking": False},
+                },
+            )
+            logger.info(f"ContentAnalyzer LLM initialized with model: {self._model}")
+        return self._llm
 
     # =====================================================
     # Main Processing Method
@@ -181,7 +194,8 @@ CONTENT:
     async def process_content(self, title: str, content: str):
         logger.info(f"Processing content with title: {title[:30]}...")
 
-        response = await self.chain.ainvoke({
+        chain = self.prompt | self._ensure_llm() | self.parser
+        response = await chain.ainvoke({
             "title": title,
             "content": content,
             "format_instructions": self.parser.get_format_instructions()
@@ -191,9 +205,21 @@ CONTENT:
 
         return response
 
-ContentAnalyzerInstance = ContentAnalyzer(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+# Importing this module must not require an OpenAI key: the API can still run
+# without analysis configured. Pass an explicit key (or set OPENAI_API_KEY) to
+# construct a fully-initialized instance; process_content() will raise a clear
+# error if no key is available.
+def _create_analyzer() -> "ContentAnalyzer":
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning(
+            "OPENAI_API_KEY is not set - ContentAnalyzer will be unavailable "
+            "until a key is provided via the environment or the constructor"
+        )
+    return ContentAnalyzer(api_key=api_key)
+
+
+ContentAnalyzerInstance = _create_analyzer()
 
 # =====================================================
 # Example Usage

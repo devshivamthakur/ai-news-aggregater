@@ -1,14 +1,21 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:13
+    container_name: ai_news_db
     environment:
       POSTGRES_DB: ai_news
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d ai_news"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   app:
     build: .
@@ -19,4 +26,9 @@ services:
       SCHEDULER_ENABLED: "true"
       SYNC_DEFAULT_SOURCES_ON_STARTUP: "true"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
