@@ -1,0 +1,30 @@
+import asyncio
+
+from fastapi import APIRouter, Depends
+
+from app.api.deps import require_admin
+from app.api.schemas import JobAccepted
+from app.core.pipeline import aggregate_and_email
+from app.logging.logger import logger
+
+router = APIRouter()
+
+
+async def _aggregate_job() -> None:
+    """Background aggregation job."""
+    try:
+        await aggregate_and_email()
+    except Exception:
+        logger.exception("Background aggregation job failed")
+
+
+@router.post(
+    "/jobs/aggregate",
+    response_model=JobAccepted,
+    tags=["jobs"],
+    dependencies=[Depends(require_admin)],
+)
+async def trigger_aggregate() -> JobAccepted:
+    """Trigger a full aggregation cycle (admin only)."""
+    asyncio.create_task(_aggregate_job())
+    return JobAccepted(detail="Aggregation task scheduled")

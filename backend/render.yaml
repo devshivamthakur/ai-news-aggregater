@@ -1,0 +1,48 @@
+# Render Blueprint: deploys the app with Docker and provisions a managed PostgreSQL database.
+# Web service: FastAPI + in-process APScheduler (daily aggregate at CUSTOM_FETCH_HOUR).
+# Optional: set SCHEDULER_ENABLED=false and use an external cron to POST /api/v1/jobs/aggregate with X-API-Key.
+services:
+  - type: web
+    name: ai-news-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-news-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: CONTENT_ANALYZER_MODEL
+        value: gpt-4o-mini
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: SCHEDULER_TIMEZONE
+        value: UTC
+      - key: CUSTOM_FETCH_HOUR
+        value: "8"
+      - key: SYNC_DEFAULT_SOURCES_ON_STARTUP
+        value: "true"
+      - key: AGGREGATION_LOOKBACK_HOURS
+        value: "24"
+      - key: AGGREGATION_RSS_PER_FEED_LIMIT
+        value: "20"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        value: shivamadmin@mailinator.com
+
+databases:
+  - name: ai-news-db
+    plan: free
+    databaseName: ai_news

@@ -1,0 +1,396 @@
+"""End-to-end aggregation: fetch from DB-configured sources, analyze, store, email."""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime
+
+from app.config.settings import settings
+from app.email.sender import email_sender
+from app.fetchers.blog_fetcher import rss_scraper
+from app.fetchers.models import BlogPost, ChannelVideo
+from app.fetchers.video_fetcher import youtube_scraper
+from app.logging.logger import logger
+from app.models import NewsType
+from app.processors.content_analyzer import ContentAnalyzerInstance
+from app.services.ingestion_source_service import IngestionSourceService
+from app.storage.crud import NewsService
+from app.storage.db import SessionLocal, create_tables
+
+
+async def _fetch_rss_feeds(
+    rss_rows: list,
+    lookback: int,
+    per_feed_limit: int,
+) -> list[BlogPost]:
+    """Fetch all RSS feeds concurrently."""
+    tasks = [
+        asyncio.to_thread(
+            rss_scraper.fetch_feed,
+            src.identifier,
+            src.display_name,
+            hours=lookback,
+            limit=per_feed_limit,
+        )
+        for src in rss_rows
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    posts: list[BlogPost] = []
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error("Failed to fetch RSS feed: %s", result)
+        elif isinstance(result, list):
+            posts.extend(result)
+    return posts
+
+
+async def _fetch_medium_feeds(
+    medium_rows: list,
+    lookback: int,
+    per_feed_limit: int,
+) -> list[BlogPost]:
+    """Fetch all Medium feeds concurrently."""
+    tasks = [
+        asyncio.to_thread(
+            rss_scraper.fetch_feed,
+            src.identifier,
+            src.display_name,
+            hours=lookback,
+            limit=per_feed_limit,
+        )
+        for src in medium_rows
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    posts: list[BlogPost] = []
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error("Failed to fetch Medium feed: %s", result)
+        elif isinstance(result, list):
+            posts.extend(result)
+    return posts
+
+
+async def _fetch_youtube_channels(
+    yt_rows: list,
+    lookback: int,
+) -> list[ChannelVideo]:
+    """Fetch all YouTube channels concurrently."""
+    tasks = [
+        asyncio.to_thread(
+            youtube_scraper.scrape_channel,
+            src.identifier,
+            hours=lookback,
+        )
+        for src in yt_rows
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    videos: list[ChannelVideo] = []
+    for src, result in zip(yt_rows, results, strict=False):
+        if isinstance(result, Exception):
+            logger.error("Failed to fetch YouTube channel: %s", result)
+        elif isinstance(result, list):
+            for v in result:
+                videos.append(v.model_copy(update={"source": src.display_name}))
+    return videos
+
+
+async def _analyze_all_content(
+    all_news: list[BlogPost | ChannelVideo],
+) -> list[tuple[str, str] | BaseException]:
+    """Analyze all news items as one parallel batch (instead of one-by-one)."""
+    if not all_news:
+        return []
+
+    items = []
+    for news_item in all_news:
+        body = (
+            news_item.content
+            if isinstance(news_item, BlogPost)
+            else (news_item.transcript or news_item.description or "")
+        )
+        items.append((news_item.title, body))
+
+    return await ContentAnalyzerInstance.process_batch(
+        items,
+        max_concurrency=settings.content_analyzer_max_concurrency,
+    )
+
+
+def _filter_new_items(
+    all_news: list[BlogPost | ChannelVideo],
+) -> list[BlogPost | ChannelVideo]:
+    """Drop items whose URL already exists in the news table.
+
+    Runs in its own thread (call via ``asyncio.to_thread``) with its own DB
+    session so the event loop is never blocked. Checking before analysis means
+    duplicates never waste an LLM call and the insert never trips the
+    ``news_url_key`` unique constraint.
+    """
+    if not all_news:
+        return []
+
+    from app.models import News
+
+    db = SessionLocal()
+    try:
+        urls = {item.url for item in all_news}
+        existing_rows = (
+            db.query(News.url)
+            .filter(News.url.in_(list(urls)))
+            .all()
+        )
+        existing_urls = {row[0] for row in existing_rows}
+        if existing_urls:
+            logger.info(
+                "Skipping %s item(s) already in database (duplicate URLs)",
+                len(existing_urls),
+            )
+
+        return [item for item in all_news if item.url not in existing_urls]
+    finally:
+        db.close()
+
+
+def _get_active_source_rows() -> tuple[list, list, list]:
+    """Sync helper: fetch active RSS / YouTube / Medium source rows.
+
+    Runs in its own thread (call via ``asyncio.to_thread``) so the blocking
+    DB queries never touch the event loop. Columns used by the fetchers
+    (identifier, display_name) are eagerly loaded, so the detached rows are
+    safe to use after the session closes.
+    """
+    db = SessionLocal()
+    try:
+        source_svc = IngestionSourceService(db)
+        rss_rows = source_svc.get_active_rss()
+        yt_rows = source_svc.get_active_youtube()
+        medium_rows = source_svc.get_active_medium()
+        return rss_rows, yt_rows, medium_rows
+    finally:
+        db.close()
+
+
+def _store_news_items(
+    all_news: list[BlogPost | ChannelVideo],
+    analysis_results: list[tuple[str, str] | BaseException],
+    current_hour: int,
+    current_time: datetime,
+) -> list:
+    """Sync helper: persist analyzed items to the database.
+
+    Runs in its own thread (call via ``asyncio.to_thread``) with its own DB
+    session so the blocking per-item inserts never block the event loop.
+    """
+    if not all_news:
+        return []
+
+    db = SessionLocal()
+    try:
+        stored_news = []
+        for news_item, analysis in zip(all_news, analysis_results, strict=False):
+            try:
+                if isinstance(analysis, BaseException):
+                    logger.error("Failed to analyze news: %s", analysis)
+                    continue
+                summary, category = analysis
+                body = (
+                    news_item.content
+                    if isinstance(news_item, BlogPost)
+                    else (news_item.transcript or news_item.description or "")
+                )
+                news_type = (
+                    NewsType.VIDEO
+                    if isinstance(news_item, ChannelVideo)
+                    else NewsType.ARTICLE
+                )
+                news_record = NewsService.create_news(
+                    db=db,
+                    title=news_item.title,
+                    content=body,
+                    summary=summary,
+                    category=category,
+                    source=news_item.source,
+                    url=news_item.url,
+                    published_at=(
+                        news_item.published_at
+                        if hasattr(news_item, "published_at")
+                        else datetime.utcnow()
+                    ),
+                    news_type=news_type,
+                    fetch_hour=current_hour,
+                    fetch_date=current_time,
+                )
+                if news_record:
+                    stored_news.append(news_record)
+                    logger.info("Stored news: %s...", news_record.title[:50])
+            except Exception as e:
+                logger.error("Failed to process news: %s", e)
+        return stored_news
+    finally:
+        db.close()
+
+
+def _get_digest_subscribers() -> list:
+    """Sync helper: fetch users subscribed to digests.
+
+    Runs in its own thread (call via ``asyncio.to_thread``). All mapped
+    columns are eagerly loaded by the query, so the detached user objects
+    remain safe to read after the session closes.
+    """
+    from app.models import User
+
+    db = SessionLocal()
+    try:
+        return (
+            db.query(User)
+            .filter(
+                User.is_active.is_(True),
+                User.digest_subscribed.is_(True),
+            )
+            .all()
+        )
+    finally:
+        db.close()
+
+
+async def _send_emails_to_users(
+    users: list,
+    stored_news: list,
+) -> None:
+    """Send emails to all users concurrently."""
+    tasks = []
+    for user in users:
+        tasks.append(asyncio.to_thread(
+            _send_email_to_user,
+            user,
+            stored_news,
+        ))
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def _send_email_to_user(
+    user,
+    stored_news: list,
+) -> None:
+    """Send email to a single user."""
+    try:
+        user_interests = user.interests or []
+        user_news = []
+
+        for news_item in stored_news:
+            if news_item.category in user_interests or not user_interests:
+                user_news.append(
+                    {
+                        "title": news_item.title,
+                        "summary": news_item.summary,
+                        "url": news_item.url,
+                        "category": news_item.category,
+                        "source": news_item.source,
+                        "news_type": news_item.news_type.value,
+                    }
+                )
+
+        if user_news:
+            logger.info("Sending %s news items to %s", len(user_news), user.email)
+            email_sender.send_news_digest(
+                user_email=user.email,
+                user_name=user.name or user.email.split("@")[0],
+                articles=user_news,
+                user_interests=user_interests,
+            )
+        else:
+            logger.info("No matching news for user %s", user.email)
+
+    except Exception as e:
+        logger.error("Failed to send email to %s: %s", user.email, e)
+
+
+async def aggregate_and_email() -> None:
+    """Fetch news from all active DB sources, analyze, persist, and notify users.
+
+    Every blocking operation (table creation, source queries, dedupe, inserts,
+    user query, email sending) is offloaded to a worker thread via
+    ``asyncio.to_thread`` so the event loop — and therefore the API server —
+    is never blocked while aggregation runs.
+    """
+    await asyncio.to_thread(create_tables)
+    try:
+        current_hour = datetime.utcnow().hour
+        current_time = datetime.utcnow()
+        lookback = settings.aggregation_lookback_hours
+        per_feed_limit = settings.aggregation_rss_per_feed_limit
+
+        logger.info(
+            "Starting news aggregation at hour %02d:00 UTC (lookback=%sh)",
+            current_hour,
+            lookback,
+        )
+
+        rss_rows, yt_rows, medium_rows = await asyncio.to_thread(
+            _get_active_source_rows
+        )
+
+        if not rss_rows and not yt_rows and not medium_rows:
+            logger.warning(
+                "No active ingestion sources in database. "
+                "Run POST /api/v1/sources/sync-defaults or add sources."
+            )
+            return
+
+        # 1. Fetch all sources concurrently (each fetcher runs in a thread)
+        rss_task = (
+            _fetch_rss_feeds(rss_rows, lookback, per_feed_limit)
+            if rss_rows
+            else asyncio.sleep(0, result=[])
+        )
+        medium_task = (
+            _fetch_medium_feeds(medium_rows, lookback, per_feed_limit)
+            if medium_rows
+            else asyncio.sleep(0, result=[])
+        )
+        youtube_task = (
+            _fetch_youtube_channels(yt_rows, lookback)
+            if yt_rows
+            else asyncio.sleep(0, result=[])
+        )
+
+        all_rss, all_medium, all_youtube = await asyncio.gather(
+            rss_task,
+            medium_task,
+            youtube_task,
+        )
+
+        all_news: list[BlogPost | ChannelVideo] = []
+        all_news.extend(all_rss)
+        all_news.extend(all_medium)
+        all_news.extend(all_youtube)
+
+        logger.info("Total fetched items: %s", len(all_news))
+
+        # 2. Drop duplicates BEFORE analysis (threaded DB query) so we never
+        #    waste LLM calls on articles that are already stored.
+        all_news = await asyncio.to_thread(_filter_new_items, all_news)
+        logger.info("New items after dedupe: %s", len(all_news))
+
+        # 3. Analyze all new content as one parallel batch (async, non-blocking)
+        analysis_results = await _analyze_all_content(all_news)
+
+        # 4. Store news items (threaded per-item inserts)
+        stored_news = await asyncio.to_thread(
+            _store_news_items,
+            all_news,
+            analysis_results,
+            current_hour,
+            current_time,
+        )
+        logger.info("Stored %s news items", len(stored_news))
+
+        # 5. Send emails to users concurrently (each send runs in a thread)
+        users = await asyncio.to_thread(_get_digest_subscribers)
+        await _send_emails_to_users(users, stored_news)
+
+        logger.info("News aggregation completed successfully")
+
+    except Exception as e:
+        logger.error("News aggregation failed: %s", e)
+        raise
