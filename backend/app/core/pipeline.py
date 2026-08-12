@@ -15,6 +15,7 @@ from app.models import NewsType
 from app.processors.content_analyzer import ContentAnalyzerInstance
 from app.services.ingestion_source_service import IngestionSourceService
 from app.storage.crud import NewsService
+from app.storage.cache import cache
 from app.storage.db import SessionLocal, create_tables
 
 
@@ -225,6 +226,18 @@ def _store_news_items(
                     logger.info("Stored news: %s...", news_record.title[:50])
             except Exception as e:
                 logger.error("Failed to process news: %s", e)
+
+        # New articles were written: drop the cached news list / detail
+        # responses so users see fresh content immediately instead of waiting
+        # for the TTL to expire. Best-effort; a Redis outage must not fail the
+        # aggregation run.
+        if stored_news:
+            try:
+                cache.invalidate_cache("news_list")
+                cache.invalidate_cache("news_by_id")
+            except Exception as e:
+                logger.warning("Failed to invalidate news cache: %s", e)
+
         return stored_news
     finally:
         db.close()

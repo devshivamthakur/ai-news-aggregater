@@ -5,6 +5,7 @@ import feedparser
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
+from app.config.settings import settings
 from app.fetchers.models import ChannelVideo, Transcript
 from app.logging.logger import logger
 
@@ -79,7 +80,10 @@ class YouTubeScraper:
         """
         try:
             logger.info(f"Fetching latest videos from channel: {channel_id}")
-            feed = feedparser.parse(self._get_rss_url(channel_id))
+            feed = feedparser.parse(
+                self._get_rss_url(channel_id),
+                request_timeout=settings.fetcher.timeout,
+            )
 
             if not feed.entries:
                 logger.warning(f"No videos found for channel {channel_id}")

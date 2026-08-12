@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 import feedparser
 
+from app.config.settings import settings
 from app.fetchers.models import BlogPost
 from app.logging.logger import logger
 from app.utils.errors import retry_on_failure
@@ -13,7 +14,9 @@ class RSSFeedScraper:
 
     def __init__(self):
         """Initialize RSS feed scraper."""
-        self.timeout = 15
+        # Configurable via FETCHER_TIMEOUT; guards against a single slow feed
+        # hanging a worker thread (and therefore the whole aggregation run).
+        self.timeout = settings.fetcher.timeout
 
     @retry_on_failure(max_retries=3, delay=2.0)
     def fetch_feed(
@@ -33,7 +36,7 @@ class RSSFeedScraper:
         """
         try:
             logger.info(f"Fetching RSS from {source_name}: {rss_url}")
-            feed = feedparser.parse(rss_url)
+            feed = feedparser.parse(rss_url, request_timeout=self.timeout)
 
             if feed.bozo:
                 logger.warning(f"RSS feed malformed for {source_name}: {feed.bozo_exception}")
