@@ -176,6 +176,14 @@ class Settings(BaseModel):
         os.getenv("CONTENT_ANALYZER_MAX_CONCURRENCY", "5")
     )
 
+    # Digest delivery scaling (for large subscriber bases, e.g. 100k+ users).
+    # Max parallel SMTP connections opened at once.
+    digest_max_concurrency: int = int(os.getenv("DIGEST_MAX_CONCURRENCY", "10"))
+    # Users sent per SMTP connection (one connection is reused for the chunk).
+    digest_batch_size: int = int(os.getenv("DIGEST_BATCH_SIZE", "200"))
+    # Subscribers fetched from the DB per page (keyset pagination).
+    digest_user_page_size: int = int(os.getenv("DIGEST_USER_PAGE_SIZE", "1000"))
+
     # API keys
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY", None)
     anthropic_api_key: str | None = os.getenv("ANTHROPIC_API_KEY", None)

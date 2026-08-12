@@ -61,6 +61,36 @@ class EmailSender:
             logger.error(f"Failed to send email via SMTP: {e}")
             return False
 
+    def build_digest_articles(self, news_items: list, user_interests: list[str]) -> list[dict]:
+        """Filter news items to a user's interests and serialize for the template.
+
+        Args:
+            news_items: Iterable of News ORM objects (or objects with the
+                expected attributes).
+            user_interests: List of category strings the user is interested in.
+
+            Returns:
+                List of article dicts matching the user's interests. If the user
+                has no interests, all items are returned (unfiltered).
+        """
+        articles: list[dict] = []
+        for news_item in news_items:
+            category = getattr(news_item, "category", None)
+            if user_interests and category not in user_interests:
+                continue
+            news_type = getattr(news_item, "news_type", None)
+            articles.append(
+                {
+                    "title": news_item.title,
+                    "summary": news_item.summary,
+                    "url": news_item.url,
+                    "category": category,
+                    "source": getattr(news_item, "source", "Unknown"),
+                    "news_type": news_type.value if hasattr(news_type, "value") else str(news_type),
+                }
+            )
+        return articles
+
     def send_news_digest(self, user_email: str, user_name: str, articles: list[dict],
                         user_interests: list[str], unsubscribe_url: str = "",
                         preferences_url: str = "") -> bool:

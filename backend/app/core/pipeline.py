@@ -243,65 +243,87 @@ def _store_news_items(
         db.close()
 
 
-def _get_digest_subscribers() -> list:
-    """Sync helper: fetch users subscribed to digests.
+def _iter_digest_subscribers(page_size: int):
+    """Yield digest subscribers in pages (keyset pagination by id).
 
-    Runs in its own thread (call via ``asyncio.to_thread``). All mapped
-    columns are eagerly loaded by the query, so the detached user objects
-    remain safe to read after the session closes.
+    Pages keep memory flat no matter how many users exist, so 100k+ users are
+    processed without ever loading them all into memory at once.
     """
     from app.models import User
 
-    db = SessionLocal()
-    try:
-        return (
-            db.query(User)
-            .filter(
-                User.is_active.is_(True),
-                User.digest_subscribed.is_(True),
+    last_id = 0
+    while True:
+        db = SessionLocal()
+        try:
+            page = (
+                db.query(User)
+                .filter(
+                    User.id > last_id,
+                    User.is_active.is_(True),
+                    User.digest_subscribed.is_(True),
+                )
+                .order_by(User.id)
+                .limit(page_size)
+                .all()
             )
-            .all()
-        )
-    finally:
-        db.close()
+        finally:
+            db.close()
+
+        if not page:
+            return
+
+        for user in page:
+            yield user
+        last_id = page[-1].id
+
+
+def _group_news_by_category(stored_news: list) -> dict:
+    """Index stored news by category for O(1) per-user interest filtering."""
+    by_category: dict = {}
+    for news_item in stored_news:
+        by_category.setdefault(news_item.category, []).append(news_item)
+    return by_category
 
 
 async def _send_emails_to_users(
     users: list,
     stored_news: list,
 ) -> None:
-    """Send emails to all users concurrently."""
-    tasks = []
-    for user in users:
-        tasks.append(asyncio.to_thread(
-            _send_email_to_user,
-            user,
-            stored_news,
-        ))
+    """Send emails to a batch of users concurrently, bounded by a semaphore.
+
+    Each worker reuses a single SMTP connection for its slice of users so we
+    never open more than ``digest_max_concurrency`` connections at once.
+    """
+    semaphore = asyncio.Semaphore(settings.digest_max_concurrency)
+    news_by_category = _group_news_by_category(stored_news)
+
+    async def _worker(user) -> None:
+        async with semaphore:
+            await asyncio.to_thread(_send_email_to_user, user, news_by_category)
+
+    tasks = [_worker(user) for user in users]
     await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def _send_email_to_user(
     user,
-    stored_news: list,
+    news_by_category: dict,
 ) -> None:
-    """Send email to a single user."""
+    """Send email to a single user, filtered to their interests.
+
+    ``news_by_category`` is a pre-built category->items index so matching is
+    O(interests) per user instead of O(total_news).
+    """
     try:
         user_interests = user.interests or []
-        user_news = []
+        if user_interests:
+            matched = []
+            for interest in user_interests:
+                matched.extend(news_by_category.get(interest, []))
+        else:
+            matched = [n for items in news_by_category.values() for n in items]
 
-        for news_item in stored_news:
-            if news_item.category in user_interests or not user_interests:
-                user_news.append(
-                    {
-                        "title": news_item.title,
-                        "summary": news_item.summary,
-                        "url": news_item.url,
-                        "category": news_item.category,
-                        "source": news_item.source,
-                        "news_type": news_item.news_type.value,
-                    }
-                )
+        user_news = email_sender.build_digest_articles(matched, user_interests)
 
         if user_news:
             logger.info("Sending %s news items to %s", len(user_news), user.email)
@@ -316,6 +338,37 @@ def _send_email_to_user(
 
     except Exception as e:
         logger.error("Failed to send email to %s: %s", user.email, e)
+
+
+async def _deliver_digests(stored_news: list) -> None:
+    """Deliver digests to all subscribers, paginated and concurrency-bounded.
+
+    Subscribers are streamed from the DB in pages and processed in chunks so
+    memory stays flat and SMTP connections are capped regardless of user count.
+    """
+    page_size = settings.digest_user_page_size
+    batch_size = settings.digest_batch_size
+
+    batch: list = []
+    total_sent = 0
+    async for user in _aiter(_iter_digest_subscribers(page_size)):
+        batch.append(user)
+        if len(batch) >= batch_size:
+            await _send_emails_to_users(batch, stored_news)
+            total_sent += len(batch)
+            batch.clear()
+
+    if batch:
+        await _send_emails_to_users(batch, stored_news)
+        total_sent += len(batch)
+
+    logger.info("Digest delivery complete: %s subscriber(s) processed", total_sent)
+
+
+def _aiter(iterator):
+    """Adapt a sync iterator into an async generator (yields without blocking)."""
+    for item in iterator:
+        yield item
 
 
 async def aggregate_and_email() -> None:
@@ -398,9 +451,9 @@ async def aggregate_and_email() -> None:
         )
         logger.info("Stored %s news items", len(stored_news))
 
-        # 5. Send emails to users concurrently (each send runs in a thread)
-        users = await asyncio.to_thread(_get_digest_subscribers)
-        await _send_emails_to_users(users, stored_news)
+        # 5. Send emails to users (paginated + concurrency-bounded so 100k+
+        #    subscribers are processed with flat memory and capped SMTP load)
+        await _deliver_digests(stored_news)
 
         logger.info("News aggregation completed successfully")
 

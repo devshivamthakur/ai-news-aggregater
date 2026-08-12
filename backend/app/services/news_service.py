@@ -63,6 +63,10 @@ class NewsService:
         """Get all news articles in a category."""
         return self.repo.get_by_category(category)
 
+    def get_by_categories(self, categories: list[str], limit: int = 50) -> list[News]:
+        """Get recent news articles matching any of the given categories."""
+        return self.repo.get_by_categories(categories, limit)
+
     def add_article(
         self,
         *,
@@ -70,10 +74,6 @@ class NewsService:
         title: str,
         content: str = "",
         summary: str = "",
-        category: str = "Uncategorized",
-        source: str = "",
-        published_at: datetime | None = None,
-        news_type: NewsType = NewsType.ARTICLE,
         **kwargs: Any,
     ) -> tuple[News, bool]:
         """Add a news article, handling duplicates by URL."""
