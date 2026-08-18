@@ -15,6 +15,19 @@ from app.logging.logger import logger
 from app.models import IngestionSource
 from app.models.source import SourceStatus, SourceType
 
+# Identifiers that were previously seeded but are now confirmed dead
+# (e.g. 404/403 feeds, channels that no longer exist). sync_defaults()
+# deactivates any active rows matching these so stale sources stop being
+# polled. Add new confirmed-dead identifiers here.
+DEAD_SOURCE_IDENTIFIERS: set[str] = {
+    "UC8wZnXY3hz3L9Nf3q7v6RgA",  # "AI Explained" - YouTube: channel does not exist
+    "https://openai.com/feed.xml",  # 403 Forbidden
+    "https://medium.com/feed/@thomas-shu",  # 404
+    "https://medium.com/feed/@analyticsvidhya",  # 404
+    "https://medium.com/feed/@machinelearningworld",  # 404
+    "https://medium.com/@dev_shivam_thakur",  # 403 (wrong URL format)
+}
+
 
 class IngestionSourceService:
     """Manage ingestion_sources rows with enterprise patterns."""
@@ -157,11 +170,33 @@ class IngestionSourceService:
                 created += 1
                 medium_created += 1
 
+        # Deactivate any previously-seeded sources that are now confirmed dead
+        # (e.g. 404/403 feeds, deleted YouTube channels). sync_defaults only
+        # upserts/activates from defaults, so without this step stale rows would
+        # keep being polled forever.
+        deactivated = 0
+        if DEAD_SOURCE_IDENTIFIERS:
+            dead_rows = (
+                self._db.query(IngestionSource)
+                .filter(
+                    IngestionSource.identifier.in_(DEAD_SOURCE_IDENTIFIERS),
+                    IngestionSource.is_active.is_(True),
+                )
+                .all()
+            )
+            for row in dead_rows:
+                row.is_active = False
+                row.status = SourceStatus.INACTIVE
+                deactivated += 1
+            if dead_rows:
+                self._db.commit()
+
         self._db.commit()
         logger.info(
-            "Synced default ingestion sources: created=%s updated=%s (medium=%s)",
+            "Synced default ingestion sources: created=%s updated=%s deactivated=%s (medium=%s)",
             created,
             updated,
+            deactivated,
             medium_created,
         )
         return {

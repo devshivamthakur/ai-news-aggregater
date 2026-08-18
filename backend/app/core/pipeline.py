@@ -178,7 +178,7 @@ def _get_active_source_rows() -> tuple[list, list, list]:
 
 def _store_news_items(
     all_news: list[BlogPost | ChannelVideo],
-    analysis_results: list[tuple[str, str] | BaseException],
+    analysis_results: list,
     current_hour: int,
     current_time: datetime,
 ) -> list:
@@ -198,7 +198,7 @@ def _store_news_items(
                 if isinstance(analysis, BaseException):
                     logger.error("Failed to analyze news: %s", analysis)
                     continue
-                summary, category = analysis
+                summary, category = analysis.summary, analysis.category
                 body = (
                     news_item.content
                     if isinstance(news_item, BlogPost)
