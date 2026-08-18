@@ -365,10 +365,11 @@ async def _deliver_digests(stored_news: list) -> None:
     logger.info("Digest delivery complete: %s subscriber(s) processed", total_sent)
 
 
-def _aiter(iterator):
+async def _aiter(iterator):
     """Adapt a sync iterator into an async generator (yields without blocking)."""
     for item in iterator:
         yield item
+        await asyncio.sleep(0)  # Allow event loop to breathe
 
 
 async def aggregate_and_email() -> None:

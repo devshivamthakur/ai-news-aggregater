@@ -1,4 +1,5 @@
 import re
+import socket
 from datetime import datetime, timedelta
 
 import feedparser
@@ -36,7 +37,8 @@ class RSSFeedScraper:
         """
         try:
             logger.info(f"Fetching RSS from {source_name}: {rss_url}")
-            feed = feedparser.parse(rss_url, request_timeout=self.timeout)
+            socket.setdefaulttimeout(self.timeout)
+            feed = feedparser.parse(rss_url)
 
             if feed.bozo:
                 logger.warning(f"RSS feed malformed for {source_name}: {feed.bozo_exception}")

@@ -1,4 +1,5 @@
 import os
+import socket
 from datetime import UTC, datetime, timedelta
 
 import feedparser
@@ -80,9 +81,9 @@ class YouTubeScraper:
         """
         try:
             logger.info(f"Fetching latest videos from channel: {channel_id}")
+            socket.setdefaulttimeout(settings.fetcher.timeout)
             feed = feedparser.parse(
                 self._get_rss_url(channel_id),
-                request_timeout=settings.fetcher.timeout,
             )
 
             if not feed.entries:
