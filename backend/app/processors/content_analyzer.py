@@ -265,7 +265,9 @@ CONTENT:
         logger.info(f"Content analysis completed for title: {title[:30]}...")
 
 
-        return response
+        # Instead of returning a list of Pydantic objects, return a list of tuples
+        # to match what the pipeline code expects.
+        return [(r.title, r.summary, r.category) for r in response]
 
     # =====================================================
     # Batch Processing Method

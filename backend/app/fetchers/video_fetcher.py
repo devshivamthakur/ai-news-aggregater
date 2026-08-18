@@ -2,7 +2,7 @@ import os
 import socket
 from datetime import UTC, datetime, timedelta
 
-import feedparser
+import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
@@ -32,10 +32,15 @@ class YouTubeScraper:
                 logger.warning(f"Failed to initialize proxy: {e}")
 
         self.transcript_api = YouTubeTranscriptApi(proxy_config=proxy_config)
+        self.ydl = yt_dlp.YoutubeDL(
+            {
+                "quiet": True,
+                "no_warnings": True,
+                "extract_flat": True,
+                "force_generic_extractor": True,
+            }
+        )
 
-    def _get_rss_url(self, channel_id: str) -> str:
-        """Get RSS feed URL for a YouTube channel."""
-        return f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 
     def _extract_video_id(self, video_url: str) -> str:
         """Extract video ID from YouTube URL."""
@@ -82,22 +87,48 @@ class YouTubeScraper:
         try:
             logger.info(f"Fetching latest videos from channel: {channel_id}")
             socket.setdefaulttimeout(settings.fetcher.timeout)
-            feed = feedparser.parse(
-                self._get_rss_url(channel_id),
-            )
+            
+            playlist_url = f"https://www.youtube.com/channel/{channel_id}/videos"
+            result = self.ydl.extract_info(playlist_url, download=False)
 
-            if not feed.entries:
+            if not result or "entries" not in result:
                 logger.warning(f"No videos found for channel {channel_id}")
                 return []
 
             cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
             videos = []
 
-            for entry in feed.entries:
-                # Skip shorts
-                if "/shorts/" in entry.link:
-                    logger.debug(f"Skipping short: {entry.title}")
+            for entry in result["entries"]:
+                published_at = datetime.fromtimestamp(entry.get("timestamp", 0), tz=UTC)
+                if published_at < cutoff_time:
                     continue
+                
+                # Skip shorts, yt-dlp may not always have a clear flag
+                if "shorts" in entry.get("title", "").lower() or "/shorts/" in entry.get("url", ""):
+                    logger.debug(f"Skipping short: {entry.get('title')}")
+                    continue
+                
+                videos.append(
+                    ChannelVideo(
+                        video_id=entry["id"],
+                        title=entry["title"],
+                        description=entry.get("description", ""),
+                        published_at=published_at,
+                        url=f"https://www.youtube.com/watch?v={entry['id']}",
+                        thumbnail_url=entry.get("thumbnail"),
+                        source_id=channel_id,
+                    )
+                )
+            
+            return videos
+        
+        except Exception as e:
+            logger.error(
+                "Failed to fetch videos for channel %s: %s",
+                channel_id,
+                e,
+            )
+            return []
 
                 try:
                     published_time = datetime(*entry.published_parsed[:6], tzinfo=UTC)

@@ -97,7 +97,7 @@ async def _fetch_youtube_channels(
 
 async def _analyze_all_content(
     all_news: list[BlogPost | ChannelVideo],
-) -> list[tuple[str, str] | BaseException]:
+) -> list[tuple[str, str, str] | BaseException]:
     """Analyze all news items as one parallel batch (instead of one-by-one)."""
     if not all_news:
         return []
@@ -109,7 +109,12 @@ async def _analyze_all_content(
             if isinstance(news_item, BlogPost)
             else (news_item.transcript or news_item.description or "")
         )
-        items.append((news_item.title, body))
+        items.append(
+            (
+                news_item.title,
+                body,
+            )
+        )
 
     return await ContentAnalyzerInstance.process_batch(
         items,
