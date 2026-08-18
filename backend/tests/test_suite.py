@@ -1,6 +1,6 @@
 """Testing utilities and fixtures for the aggregator."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine
@@ -35,10 +35,10 @@ def sample_news(test_db: Session) -> News:
         category="AI",
         source="Test Source",
         url="https://example.com/test",
-        published_at=datetime.utcnow(),
+        published_at=datetime.now(UTC),
         news_type=NewsType.ARTICLE,
         fetch_hour=8,
-        fetch_date=datetime.utcnow()
+        fetch_date=datetime.now(UTC)
     )
     test_db.add(news)
     test_db.commit()
@@ -109,7 +109,7 @@ class TestNewsService:
             summary="Summary",
             category="AI",
             source="Test",
-            published_at=datetime.utcnow()
+            published_at=datetime.now(UTC)
         )
 
         assert is_new
@@ -127,7 +127,7 @@ class TestNewsService:
             summary="New summary",
             category="Tech",
             source="New Source",
-            published_at=datetime.utcnow()
+            published_at=datetime.now(UTC)
         )
 
         assert not is_new
@@ -147,7 +147,7 @@ class TestNewsService:
             summary="Summary",
             category="AI",
             source="Test",
-            published_at=datetime.utcnow()
+            published_at=datetime.now(UTC)
         )
         service.add_article(
             url="https://example.com/2",
@@ -156,7 +156,7 @@ class TestNewsService:
             summary="Summary",
             category="Technology",
             source="Test",
-            published_at=datetime.utcnow()
+            published_at=datetime.now(UTC)
         )
 
         ai_articles = service.get_by_category("AI")

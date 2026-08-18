@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.config.settings import settings
 from app.email.sender import email_sender
@@ -220,7 +220,7 @@ def _store_news_items(
                     published_at=(
                         news_item.published_at
                         if hasattr(news_item, "published_at")
-                        else datetime.utcnow()
+                        else datetime.now(UTC)
                     ),
                     news_type=news_type,
                     fetch_hour=current_hour,
@@ -387,8 +387,8 @@ async def aggregate_and_email() -> None:
     """
     await asyncio.to_thread(create_tables)
     try:
-        current_hour = datetime.utcnow().hour
-        current_time = datetime.utcnow()
+        current_hour = datetime.now(UTC).hour
+        current_time = datetime.now(UTC)
         lookback = settings.aggregation_lookback_hours
         per_feed_limit = settings.aggregation_rss_per_feed_limit
 

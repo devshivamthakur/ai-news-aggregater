@@ -2,6 +2,7 @@ import os
 import socket
 from datetime import UTC, datetime, timedelta
 
+import feedparser
 import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
@@ -129,6 +130,36 @@ class YouTubeScraper:
                 e,
             )
             return []
+
+    def get_videos_via_rss(self, channel_id: str, hours: int = 24) -> list[ChannelVideo]:
+        """Get latest videos from a YouTube channel via its RSS feed.
+
+        Args:
+            channel_id: YouTube channel ID
+            hours: Only return videos from last N hours (skips shorts)
+
+        Returns:
+            List of ChannelVideo objects
+        """
+        try:
+            logger.info(f"Fetching latest videos (RSS) from channel: {channel_id}")
+            socket.setdefaulttimeout(settings.fetcher.timeout)
+            feed = feedparser.parse(
+                f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+            )
+
+            if not feed.entries:
+                logger.warning(f"No videos found for channel {channel_id}")
+                return []
+
+            cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+            videos = []
+
+            for entry in feed.entries:
+                # Skip shorts
+                if "/shorts/" in entry.link:
+                    logger.debug(f"Skipping short: {entry.title}")
+                    continue
 
                 try:
                     published_time = datetime(*entry.published_parsed[:6], tzinfo=UTC)

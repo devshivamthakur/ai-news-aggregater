@@ -1,6 +1,6 @@
 """Enterprise authentication and account routes with RBAC and refresh tokens."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -89,7 +89,7 @@ def login(
         # Increment failed login attempts
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
-            user.locked_until = datetime.utcnow() + datetime.timedelta(minutes=30)
+            user.locked_until = datetime.now(UTC) + datetime.timedelta(minutes=30)
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -99,7 +99,7 @@ def login(
     # Reset failed login attempts on successful login
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = datetime.now(UTC)
     user.last_login_ip = get_client_ip(request)
     db.commit()
 
@@ -225,7 +225,7 @@ def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     user.password_hash = hash_password(body.new_password)
-    user.password_changed_at = datetime.utcnow()
+    user.password_changed_at = datetime.now(UTC)
     db.commit()
 
     return {"message": "Password changed successfully"}

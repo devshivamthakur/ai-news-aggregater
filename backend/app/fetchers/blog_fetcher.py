@@ -1,13 +1,9 @@
-import re
-import socket
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import feedparser
 
-from app.config.settings import settings
 from app.fetchers.models import BlogPost
 from app.logging.logger import logger
-from app.utils.errors import retry_on_failure
 
 
 class RSSScraper:
@@ -92,7 +88,7 @@ class RSSScraper:
         return all_posts
 
 # Initialize scraper
-rss_scraper = RSSFeedScraper()
+rss_scraper = RSSScraper()
 
 
 # if __name__ == "__main__":

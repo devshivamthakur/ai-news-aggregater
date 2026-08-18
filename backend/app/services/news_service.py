@@ -1,6 +1,6 @@
 """News service for managing news articles in the database."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -74,6 +74,10 @@ class NewsService:
         title: str,
         content: str = "",
         summary: str = "",
+        category: str = "Uncategorized",
+        source: str = "",
+        published_at: datetime | None = None,
+        news_type: NewsType = NewsType.ARTICLE,
         **kwargs: Any,
     ) -> tuple[News, bool]:
         """Add a news article, handling duplicates by URL."""
@@ -84,7 +88,7 @@ class NewsService:
             summary=summary,
             category=category,
             source=source,
-            published_at=published_at or datetime.utcnow(),
+            published_at=published_at or datetime.now(UTC),
             news_type=news_type,
             status=NewsStatus.PENDING,
             **kwargs,
@@ -115,7 +119,7 @@ class NewsService:
                 category=category,
                 source=source,
                 url=url,
-                published_at=published_at or datetime.utcnow(),
+                published_at=published_at or datetime.now(UTC),
                 news_type=news_type,
                 status=NewsStatus.PENDING,
                 fetch_hour=fetch_hour,

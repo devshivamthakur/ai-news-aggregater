@@ -7,7 +7,7 @@ When running the FastAPI app (`ai_news_aggregater.api.main:app`), prefer the in-
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -21,7 +21,7 @@ from app.logging.logger import logger
 def run_daily_aggregation() -> None:
     """Run the daily news aggregation and emailing."""
     logger.info("Starting daily aggregation at hour %s...", settings.scheduler.fetch_hour)
-    logger.info("Timestamp: %s", datetime.utcnow().isoformat())
+    logger.info("Timestamp: %s", datetime.now(UTC).isoformat())
     asyncio.run(aggregate_and_email())
 
 

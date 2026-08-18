@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -37,7 +37,7 @@ def admin_flush_cache() -> dict:
 @cached("admin_stats", ttl=60)  # Cache for 60 seconds
 def admin_stats(db: Annotated[Session, Depends(get_db)]) -> AdminStatsOut:
     """Get comprehensive admin dashboard statistics."""
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - timedelta(days=7)
 
     return AdminStatsOut(
@@ -146,5 +146,5 @@ def admin_delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     user.is_active = False
-    user.deleted_at = datetime.utcnow()
+    user.deleted_at = datetime.now(UTC)
     db.commit()

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -56,7 +56,7 @@ class AggregationService:
             },
             'articles': articles,
             'article_count': len(articles),
-            'generated_at': datetime.utcnow()
+            'generated_at': datetime.now(UTC)
         }
 
     def process_fetched_articles(
@@ -84,7 +84,7 @@ class AggregationService:
                     summary=article.get('summary', ''),
                     category=article.get('category', 'Uncategorized'),
                     source=source,
-                    published_at=article.get('published_at', datetime.utcnow()),
+                    published_at=article.get('published_at', datetime.now(UTC)),
                     news_type=article.get('news_type', NewsType.ARTICLE)
                 )
 

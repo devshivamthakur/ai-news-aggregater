@@ -1,7 +1,7 @@
 """Enterprise Ingestion Source model with health tracking and metadata."""
 
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -18,6 +18,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
+
+
+def _utcnow():
+    return datetime.now(UTC)
 
 
 class SourceType(enum.StrEnum):
@@ -92,12 +96,11 @@ class IngestionSource(Base):
     total_items_fetched = Column(Integer, default=0)
 
     # Rate limiting
-    rate_limit_remaining = Column(Integer, nullable=True)
-    rate_limit_reset_at = Column(DateTime, nullable=True)
+    rate_limit_remaining = Column(Integer)
 
     # Audit fields
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 

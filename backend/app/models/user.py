@@ -1,7 +1,7 @@
 """Enterprise User model with RBAC, audit fields, and soft deletes."""
 
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
@@ -16,6 +16,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import validates
 
 from app.models.base import Base
+
+
+def _utcnow():
+    return datetime.now(UTC)
 
 
 class UserRole(enum.StrEnum):
@@ -104,8 +108,8 @@ class User(Base):
     deleted_by = Column(Integer, nullable=True)
 
     # Audit fields
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     created_by = Column(Integer, nullable=True)
     updated_by = Column(Integer, nullable=True)
 
@@ -138,7 +142,7 @@ class User(Base):
         """Check if account is currently locked."""
         if self.locked_until is None:
             return False
-        return datetime.utcnow() < self.locked_until
+        return datetime.now(UTC) < self.locked_until
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

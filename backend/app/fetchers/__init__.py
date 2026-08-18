@@ -1,4 +1,4 @@
-from app.fetchers.blog_fetcher import RSSFeedScraper
+from app.fetchers.blog_fetcher import RSSScraper
 from app.fetchers.models import (
     BlogPost,
     ChannelVideo,

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -51,7 +51,7 @@ class WebScraper:
                 title=title,
                 content=content,
                 url=url,
-                published_at=datetime.utcnow(),
+                published_at=datetime.now(UTC),
                 source=source_name
             )
         except requests.RequestException as e:

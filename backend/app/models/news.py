@@ -1,7 +1,7 @@
 """Enterprise News model with full-text search, metadata, and audit trail."""
 
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -18,6 +18,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
+
+
+def _utcnow():
+    return datetime.now(UTC)
 
 
 class NewsType(enum.StrEnum):
@@ -94,11 +98,11 @@ class News(Base):
     language = Column(String(10), default="en")
 
     # Timestamps
-    published_at = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, nullable=True)  # When the source published the item
     fetch_hour = Column(Integer)  # Hour (0-23) when the news was fetched
     fetch_date = Column(DateTime)  # Date and time when the news was fetched
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     # Soft delete
     is_active = Column(Boolean, default=True, nullable=False)

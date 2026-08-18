@@ -1,7 +1,7 @@
 """Abstract base fetcher for consistent news fetching patterns."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging.logger import logger
@@ -100,7 +100,7 @@ class BaseFetcher(ABC):
         """
         if isinstance(date, datetime):
             return date
-        return datetime.utcnow()
+        return datetime.now(UTC)
 
 
 class FetcherRegistry:

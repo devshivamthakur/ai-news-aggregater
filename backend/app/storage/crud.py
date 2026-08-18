@@ -1,6 +1,6 @@
 """CRUD operations for storage models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -43,7 +43,7 @@ class NewsService:
                 category=category,
                 source=source,
                 url=url,
-                published_at=published_at or datetime.utcnow(),
+                published_at=published_at or datetime.now(UTC),
                 news_type=news_type,
                 status=NewsStatus.PENDING,
                 fetch_hour=fetch_hour,
