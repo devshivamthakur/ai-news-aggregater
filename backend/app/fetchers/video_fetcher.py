@@ -8,6 +8,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
 from app.config.settings import settings
+from app.fetchers.base import fetch_feed_bytes
 from app.fetchers.models import ChannelVideo, Transcript
 from app.logging.logger import logger
 
@@ -100,27 +101,43 @@ class YouTubeScraper:
             videos = []
 
             for entry in result["entries"]:
-                published_at = datetime.fromtimestamp(entry.get("timestamp", 0), tz=UTC)
-                if published_at < cutoff_time:
-                    continue
-                
-                # Skip shorts, yt-dlp may not always have a clear flag
-                if "shorts" in entry.get("title", "").lower() or "/shorts/" in entry.get("url", ""):
-                    logger.debug(f"Skipping short: {entry.get('title')}")
-                    continue
-                
-                videos.append(
-                    ChannelVideo(
-                        video_id=entry["id"],
-                        title=entry["title"],
-                        description=entry.get("description", ""),
-                        published_at=published_at,
-                        url=f"https://www.youtube.com/watch?v={entry['id']}",
-                        thumbnail_url=entry.get("thumbnail"),
-                        source_id=channel_id,
+                try:
+                    timestamp = entry.get("timestamp")
+                    if timestamp is None:
+                        logger.debug(
+                            "Skipping video with no timestamp: %s",
+                            entry.get("id"),
+                        )
+                        continue
+
+                    published_at = datetime.fromtimestamp(timestamp, tz=UTC)
+                    if published_at < cutoff_time:
+                        continue
+
+                    # Skip shorts, yt-dlp may not always have a clear flag
+                    if "shorts" in entry.get("title", "").lower() or "/shorts/" in entry.get("url", ""):
+                        logger.debug(f"Skipping short: {entry.get('title')}")
+                        continue
+
+                    videos.append(
+                        ChannelVideo(
+                            video_id=entry["id"],
+                            title=entry["title"],
+                            description=entry.get("description", ""),
+                            published_at=published_at,
+                            url=f"https://www.youtube.com/watch?v={entry['id']}",
+                            thumbnail_url=entry.get("thumbnail"),
+                            source_id=channel_id,
+                        )
                     )
-                )
-            
+                except Exception as e:
+                    logger.warning(
+                        "Error processing video entry for channel %s: %s",
+                        channel_id,
+                        e,
+                    )
+                    continue
+
             return videos
         
         except Exception as e:
@@ -144,9 +161,15 @@ class YouTubeScraper:
         try:
             logger.info(f"Fetching latest videos (RSS) from channel: {channel_id}")
             socket.setdefaulttimeout(settings.fetcher.timeout)
-            feed = feedparser.parse(
-                f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+            raw = fetch_feed_bytes(
+                f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}",
+                timeout=settings.fetcher.timeout,
             )
+            if raw is None:
+                logger.warning(f"Could not retrieve RSS feed for channel {channel_id}")
+                return []
+
+            feed = feedparser.parse(raw)
 
             if not feed.entries:
                 logger.warning(f"No videos found for channel {channel_id}")

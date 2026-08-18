@@ -4,7 +4,39 @@ from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from typing import Any
 
+import requests
+
 from app.logging.logger import logger
+
+
+DEFAULT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+    )
+}
+
+
+def fetch_feed_bytes(url: str, *, timeout: int = 20) -> str | None:
+    """Fetch a feed's raw content as text.
+
+    Performs the HTTP request ourselves (instead of letting feedparser do it)
+    so we can:
+    - send a browser-like User-Agent,
+    - honour a timeout,
+    - ignore the server's ``Content-Type`` (GitHub raw serves feeds as
+      ``text/plain``, which feedparser otherwise refuses to parse).
+
+    Returns the decoded body, or ``None`` on failure.
+    """
+    try:
+        response = requests.get(url, headers=DEFAULT_HEADERS, timeout=timeout)
+        response.raise_for_status()
+        # Let requests infer the correct encoding; fall back to utf-8.
+        return response.text
+    except requests.RequestException as e:
+        logger.warning("Failed to download feed %s: %s", url, e)
+        return None
 
 
 class BaseFetcher(ABC):

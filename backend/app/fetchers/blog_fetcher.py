@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import feedparser
 
+from app.fetchers.base import fetch_feed_bytes
 from app.fetchers.models import BlogPost
 from app.logging.logger import logger
 
@@ -18,11 +19,13 @@ class RSSScraper:
     ) -> list[BlogPost]:
         """Fetch RSS feed and return a list of posts from the last N hours."""
         logger.info("Fetching RSS from %s: %s", source_name, feed_url)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
-        }
         try:
-            feed = feedparser.parse(feed_url, request_headers=headers)
+            raw = fetch_feed_bytes(feed_url)
+            if raw is None:
+                logger.warning("Could not retrieve RSS feed for %s", source_name)
+                return []
+
+            feed = feedparser.parse(raw)
             if feed.bozo:
                 logger.warning(
                     "RSS feed malformed for %s: %s",
