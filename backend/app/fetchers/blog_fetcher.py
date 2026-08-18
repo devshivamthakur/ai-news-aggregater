@@ -87,6 +87,78 @@ class RSSScraper:
                 all_posts.extend(posts)
         return all_posts
 
+    def _parse_published_time(self, entry) -> datetime | None:
+        """Parse the published time from a feed entry.
+
+        Falls back through the common feedparser date fields and returns a
+        timezone-aware UTC datetime, or None if no date is available.
+        """
+        for field in ("published_parsed", "updated_parsed", "created_parsed"):
+            parsed = getattr(entry, field, None)
+            if parsed:
+                try:
+                    return datetime(*parsed[:6], tzinfo=UTC)
+                except (TypeError, ValueError):
+                    continue
+
+        for field in ("published", "updated", "created"):
+            raw = getattr(entry, field, None)
+            if raw:
+                try:
+                    return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                except (TypeError, ValueError):
+                    continue
+
+        return None
+
+    def _extract_image_url(self, entry) -> str | None:
+        """Extract a representative image URL from a feed entry if present."""
+        # RSS media thumbnail / enclosure
+        media_thumbnail = getattr(entry, "media_thumbnail", None)
+        if isinstance(media_thumbnail, list) and media_thumbnail:
+            url = media_thumbnail[0].get("url")
+            if url:
+                return url
+
+        media_content = getattr(entry, "media_content", None)
+        if isinstance(media_content, list) and media_content:
+            url = media_content[0].get("url")
+            if url:
+                return url
+
+        enclosure = getattr(entry, "enclosure", None)
+        if enclosure and getattr(enclosure, "type", "").startswith("image/"):
+            return getattr(enclosure, "href", None)
+
+        return None
+
+    def _extract_content(self, entry) -> str:
+        """Extract the main content/summary text from a feed entry."""
+        content = getattr(entry, "content", None)
+        if isinstance(content, list) and content:
+            value = content[0].get("value")
+            if value:
+                return value
+
+        summary = getattr(entry, "summary", None)
+        if summary:
+            return summary
+
+        description = getattr(entry, "description", None)
+        return description or ""
+
+    def _extract_author(self, entry) -> str | None:
+        """Extract the author name from a feed entry if present."""
+        author = getattr(entry, "author", None)
+        if author:
+            return author
+
+        authors = getattr(entry, "authors", None)
+        if isinstance(authors, list) and authors:
+            return authors[0].get("name") if isinstance(authors[0], dict) else str(authors[0])
+
+        return None
+
 # Initialize scraper
 rss_scraper = RSSScraper()
 
