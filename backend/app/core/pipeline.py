@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import types
 from datetime import UTC, datetime
 
 from app.config.settings import settings
@@ -227,7 +228,23 @@ def _store_news_items(
                     fetch_date=current_time,
                 )
                 if news_record:
-                    stored_news.append(news_record)
+                    # Detach into a plain object while the session is still
+                    # open. The session is closed in the ``finally`` block
+                    # below, after which accessing ORM attributes would trigger
+                    # a lazy refresh on a detached instance and raise
+                    # DetachedInstanceError. The digest path only needs these
+                    # plain columns, so we snapshot them here.
+                    stored_news.append(
+                        types.SimpleNamespace(
+                            id=news_record.id,
+                            title=news_record.title,
+                            summary=news_record.summary,
+                            category=news_record.category,
+                            source=news_record.source,
+                            url=news_record.url,
+                            news_type=news_record.news_type,
+                        )
+                    )
                     logger.info("Stored news: %s...", news_record.title[:50])
             except Exception as e:
                 logger.error("Failed to process news: %s", e)
