@@ -66,6 +66,11 @@ class News(Base):
         Index("ix_news_status", "status"),
         Index("ix_news_created_at", "created_at"),
         Index("ix_news_fetch_date", "fetch_date"),
+        # Composite index covering the interest-scoped feed query:
+        #   WHERE is_active AND category IN (...) ORDER BY created_at DESC
+        # Lets the planner filter by category and return recency-ordered rows
+        # straight from the index without a separate sort, critical at scale.
+        Index("ix_news_category_created_at", "category", "created_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

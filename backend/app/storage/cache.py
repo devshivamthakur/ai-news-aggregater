@@ -38,6 +38,30 @@ def _stable_key_part(value: Any) -> str:
         return json.dumps([_stable_key_part(v) for v in value], sort_keys=True)
     if isinstance(value, (str, int, float, bool)):
         return str(value)
+    table = getattr(value, "__table__", None)
+    if table is not None:
+        if getattr(table, "name", None) == "users":
+            # Compact, safe cache key for user-scoped queries. The result of a
+            # user-scoped news feed depends ONLY on the user's role and their
+            # interest set, so keying on those (and NOT id/password_hash/PII)
+            # lets every user with identical interests share one cache entry.
+            # This is what makes the feed cacheable at 1M-user scale instead of
+            # producing a unique, never-reused key per user.
+            return json.dumps(
+                {
+                    "role": getattr(value, "role", None),
+                    "interests": getattr(value, "interests", None) or [],
+                },
+                sort_keys=True,
+                default=str,
+            )
+        # SQLAlchemy declarative instance -> stable {column: value} key part
+        # so caches key on column values rather than the object's memory address.
+        return json.dumps(
+            {c.name: getattr(value, c.name) for c in table.columns},
+            sort_keys=True,
+            default=str,
+        )
     return str(value)
 
 

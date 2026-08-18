@@ -3,13 +3,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.api.schemas import (
     NewsListOut,
     NewsOut,
     NewsSearchParams,
 )
-from app.models import News
+from app.models import News, User
 from app.storage.cache import cached
 
 router = APIRouter()
@@ -19,10 +19,23 @@ router = APIRouter()
 @cached("news_list")
 def list_news(
     db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
     params: Annotated[NewsSearchParams, Depends()],
 ) -> NewsListOut:
-    """List news with pagination and filtering."""
+    """List news with pagination and filtering.
+
+    Admins see all active news. Regular users see only news whose
+    category matches one of their configured interests (the ``User.interests``
+    JSON list). When a user has no interests set, all news is returned as a
+    graceful fallback.
+    """
     query = db.query(News).filter(News.is_active)
+
+    # Admins see everything; regular users are scoped to their interests.
+    if not current_user.is_admin:
+        interests = current_user.interests or []
+        if interests:
+            query = query.filter(News.category.in_(interests))
 
     if params.q:
         search = f"%{params.q}%"
