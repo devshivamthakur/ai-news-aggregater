@@ -106,17 +106,11 @@ def send_digests():
                 digest = aggregation_service.get_personalized_digest(user.email, limit=5)
 
                 if digest and digest['articles']:
-                    # Prepare articles for email
-                    email_articles = [
-                        {
-                            'title': article.title,
-                            'summary': article.summary or article.content[:200],
-                            'url': article.url,
-                            'source': article.source,
-                            'category': article.category,
-                        }
-                        for article in digest['articles']
-                    ]
+                    # Prepare articles for email (reuse the safe builder that
+                    # handles None summary/content and includes news_type)
+                    email_articles = email_sender.build_digest_articles(
+                        digest['articles'], user.interests or []
+                    )
 
                     # Send email
                     success = email_sender.send_news_digest(
