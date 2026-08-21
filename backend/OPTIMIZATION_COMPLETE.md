@@ -174,7 +174,7 @@ def process_data(email: str):
 ```python
 # Before: Flat settings
 settings.database_url
-settings.smtp_port
+settings.brevo.api_key
 
 # After: Organized configuration
 settings.database.url
