@@ -19,7 +19,7 @@ router = APIRouter()
 @cached("news_list")
 def list_news(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
     params: Annotated[NewsSearchParams, Depends()],
 ) -> NewsListOut:
     """List news with pagination and filtering.
@@ -90,6 +90,7 @@ def list_news(
 def get_news(
     news_id: int,
     db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> NewsOut:
     """Get a specific news item by ID."""
     n = db.query(News).filter(News.id == news_id, News.is_active).first()

@@ -1,7 +1,4 @@
-import smtplib
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -11,13 +8,13 @@ from app.logging.logger import logger
 
 
 class EmailSender:
-    """Send personalized news digest emails."""
+    """Send personalized news digest emails via the Brevo API."""
 
     def __init__(self):
         """Initialize email sender with template loader."""
         template_dir = Path(__file__).parent / "templates"
         self.env = Environment(loader=FileSystemLoader(str(template_dir)))
-        self.from_email = settings.smtp_username
+        self.from_email = settings.brevo.sender_email or settings.admin_email
 
     def render_template(self, template_name: str, **context) -> str:
         """Render Jinja2 template with context variables."""
@@ -28,8 +25,11 @@ class EmailSender:
             logger.error(f"Failed to render template {template_name}: {e}")
             raise
 
-    def send_email_smtp(self, to_email: str, subject: str, body: str, is_html: bool = True) -> bool:
-        """Send email using SMTP.
+    def send_email_brevo(self, to_email: str, subject: str, body: str, is_html: bool = True) -> bool:
+        """Send email using the Brevo transactional email API.
+
+        Uses ``settings.brevo.sender_email`` (falling back to ``settings.admin_email``)
+        as the verified sender address. Requires ``BREVO_API_KEY`` to be configured.
 
         Args:
             to_email: Recipient email address
@@ -41,25 +41,53 @@ class EmailSender:
             True if successful, False otherwise
         """
         try:
-            msg = MIMEMultipart('alternative')
-            msg['From'] = self.from_email
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            from brevo import Brevo
+            from brevo.core.api_error import ApiError
+            from brevo.transactional_emails import (
+                SendTransacEmailRequestSender,
+                SendTransacEmailRequestToItem,
+            )
 
-            mime_type = 'html' if is_html else 'plain'
-            msg.attach(MIMEText(body, mime_type))
+            if not settings.brevo.api_key:
+                logger.error("BREVO_API_KEY is not configured; cannot send via Brevo")
+                return False
 
-            server = smtplib.SMTP(settings.smtp_server, settings.smtp_port)
-            server.starttls()
-            server.login(settings.smtp_username, settings.smtp_password)
-            server.sendmail(self.from_email, to_email, msg.as_string())
-            server.quit()
+            client = Brevo(api_key=settings.brevo.api_key)
+            sender_email = settings.brevo.sender_email or settings.admin_email
+            sender = SendTransacEmailRequestSender(
+                email=sender_email, name=settings.brevo.sender_name
+            )
 
-            logger.info(f"Email sent successfully to {to_email}")
+            client.transactional_emails.send_transac_email(
+                subject=subject,
+                html_content=body if is_html else None,
+                text_content=None if is_html else body,
+                sender=sender,
+                to=[SendTransacEmailRequestToItem(email=to_email)],
+            )
+
+            logger.info(f"Email sent successfully to {to_email} via Brevo")
             return True
-        except Exception as e:
-            logger.error(f"Failed to send email via SMTP: {e}")
+        except ApiError as e:
+            logger.error(f"Failed to send email via Brevo (API error {e.status_code}): {e}")
             return False
+        except Exception as e:
+            logger.error(f"Failed to send email via Brevo: {e}")
+            return False
+
+    def send_email(self, to_email: str, subject: str, body: str, is_html: bool = True) -> bool:
+        """Send an email via the Brevo API.
+
+        Args:
+            to_email: Recipient email address
+            subject: Email subject
+            body: Email body (HTML or text)
+            is_html: Whether body is HTML
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.send_email_brevo(to_email, subject, body, is_html)
 
     def build_digest_articles(self, news_items: list, user_interests: list[str]) -> list[dict]:
         """Filter news items to a user's interests and serialize for the template.
@@ -136,7 +164,7 @@ class EmailSender:
 
             subject = f"AIPulse Digest — {context['digest_date']}"
 
-            self.send_email_smtp(user_email, subject, html_body, is_html=True)
+            self.send_email(user_email, subject, html_body, is_html=True)
 
         except Exception as e:
             logger.error(f"Failed to send news digest to {user_email}: {e}")

@@ -313,8 +313,8 @@ async def _send_emails_to_users(
 ) -> None:
     """Send emails to a batch of users concurrently, bounded by a semaphore.
 
-    Each worker reuses a single SMTP connection for its slice of users so we
-    never open more than ``digest_max_concurrency`` connections at once.
+    Each worker reuses a single Brevo API call for its slice of users so we
+    never open more than ``digest_max_concurrency`` calls at once.
     """
     semaphore = asyncio.Semaphore(settings.digest_max_concurrency)
     news_by_category = _group_news_by_category(stored_news)
@@ -366,7 +366,7 @@ async def _deliver_digests(stored_news: list) -> None:
     """Deliver digests to all subscribers, paginated and concurrency-bounded.
 
     Subscribers are streamed from the DB in pages and processed in chunks so
-    memory stays flat and SMTP connections are capped regardless of user count.
+    memory stays flat and Brevo API calls are capped regardless of user count.
     """
     page_size = settings.digest_user_page_size
     batch_size = settings.digest_batch_size
@@ -475,7 +475,7 @@ async def aggregate_and_email() -> None:
         logger.info("Stored %s news items", len(stored_news))
 
         # 5. Send emails to users (paginated + concurrency-bounded so 100k+
-        #    subscribers are processed with flat memory and capped SMTP load)
+        #    subscribers are processed with flat memory and capped Brevo load)
         await _deliver_digests(stored_news)
 
         logger.info("News aggregation completed successfully")

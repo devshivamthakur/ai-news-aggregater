@@ -143,7 +143,7 @@ from ai_news_aggregater.config.settings import settings
 
 # Access organized configs
 database_url = settings.database.url
-smtp_timeout = settings.smtp.port
+brevo_api_key = settings.brevo.api_key
 fetch_hour = settings.scheduler.fetch_hour
 
 # Backward compatible properties
@@ -280,15 +280,11 @@ DATABASE_URL=postgresql://user:pass@localhost/ai_news
 DB_POOL_SIZE=10
 DB_POOL_TIMEOUT=30
 
-# Email - SMTP
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your@email.com
-SMTP_PASSWORD=your_password
-
-# Email - SendGrid (alternative)
-SENDGRID_API_KEY=your_key
-SENDGRID_FROM_EMAIL=from@example.com
+# Email - Brevo
+BREVO_ENABLED=true
+BREVO_API_KEY=your_key
+BREVO_SENDER_EMAIL=from@example.com
+BREVO_SENDER_NAME=AIPulse
 
 # Fetchers
 FETCHER_TIMEOUT=15

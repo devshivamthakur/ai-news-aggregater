@@ -30,23 +30,14 @@ class DatabaseConfig(BaseModel):
         frozen = True
 
 
-class SMTPConfig(BaseModel):
-    """SMTP email configuration."""
-    server: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-    port: int = int(os.getenv("SMTP_PORT", "587"))
-    username: str = os.getenv("SMTP_USERNAME", "")
-    password: str = os.getenv("SMTP_PASSWORD", "")
-    use_tls: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
-
-    class Config:
-        """Pydantic config."""
-        frozen = True
-
-
-class SendGridConfig(BaseModel):
-    """SendGrid email configuration."""
-    api_key: str | None = os.getenv("SENDGRID_API_KEY", None)
-    from_email: str | None = os.getenv("SENDGRID_FROM_EMAIL", None)
+class BrevoConfig(BaseModel):
+    """Brevo (formerly Sendinblue) transactional email configuration."""
+    api_key: str | None = os.getenv("BREVO_API_KEY", None)
+    # Verified sender address used in the `sender` field of each email.
+    sender_email: str = os.getenv("BREVO_SENDER_EMAIL", "")
+    sender_name: str = os.getenv("BREVO_SENDER_NAME", "AIPulse")
+    # When True, the Brevo API is used for delivery.
+    enabled: bool = os.getenv("BREVO_ENABLED", "false").lower() == "true"
 
     class Config:
         """Pydantic config."""
@@ -167,8 +158,7 @@ class Settings(BaseModel):
 
     # Component configs
     database: DatabaseConfig = DatabaseConfig()
-    smtp: SMTPConfig = SMTPConfig()
-    sendgrid: SendGridConfig = SendGridConfig()
+    brevo: BrevoConfig = BrevoConfig()
     fetcher: FetcherConfig = FetcherConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
     logging: LoggingConfig = LoggingConfig()
@@ -208,9 +198,9 @@ class Settings(BaseModel):
     )
 
     # Digest delivery scaling (for large subscriber bases, e.g. 100k+ users).
-    # Max parallel SMTP connections opened at once.
+    # Max parallel Brevo API calls opened at once.
     digest_max_concurrency: int = int(os.getenv("DIGEST_MAX_CONCURRENCY", "10"))
-    # Users sent per SMTP connection (one connection is reused for the chunk).
+    # Users sent per Brevo API call (one call is reused for the chunk).
     digest_batch_size: int = int(os.getenv("DIGEST_BATCH_SIZE", "200"))
     # Subscribers fetched from the DB per page (keyset pagination).
     digest_user_page_size: int = int(os.getenv("DIGEST_USER_PAGE_SIZE", "1000"))
@@ -227,26 +217,6 @@ class Settings(BaseModel):
     def database_url(self) -> str:
         """Backward compatibility property."""
         return self.database.url
-
-    @property
-    def smtp_server(self) -> str:
-        """Backward compatibility property."""
-        return self.smtp.server
-
-    @property
-    def smtp_port(self) -> int:
-        """Backward compatibility property."""
-        return self.smtp.port
-
-    @property
-    def smtp_username(self) -> str:
-        """Backward compatibility property."""
-        return self.smtp.username
-
-    @property
-    def smtp_password(self) -> str:
-        """Backward compatibility property."""
-        return self.smtp.password
 
     @property
     def custom_fetch_hour(self) -> int:
