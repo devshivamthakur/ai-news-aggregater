@@ -97,6 +97,36 @@ class JWTConfig(BaseModel):
 
         frozen = True
 
+class RateLimitConfig(BaseModel):
+    """Rate limiting configuration (slowapi / limits)."""
+
+    enabled: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+    # Default per-route limit applied to every endpoint via SlowAPIMiddleware.
+    # Format: "<number>/<period>" where period is one of second, minute, hour, day, month, year.
+    default_limit: str = os.getenv("RATE_LIMIT_DEFAULT", "100/minute")
+    # Stricter limit applied to authentication endpoints (login/register/refresh).
+    auth_limit: str = os.getenv("RATE_LIMIT_AUTH", "10/minute")
+    # Stricter limit applied to admin mutation endpoints.
+    admin_limit: str = os.getenv("RATE_LIMIT_ADMIN", "30/minute")
+    # Storage URI for the limits backend. "memory://" keeps state in-process;
+    # use a redis:// URI in production for shared state across workers.
+    storage_uri: str = os.getenv("RATE_LIMIT_STORAGE_URI", "memory://")
+    # Strategy for choosing which limit applies when several match.
+    strategy: str = os.getenv("RATE_LIMIT_STRATEGY", "moving-window")
+
+    @field_validator('strategy')
+    @classmethod
+    def validate_strategy(cls, v: str) -> str:
+        """Validate the limits strategy."""
+        valid = {'fixed-window', 'fixed-window-elastic-expiry', 'moving-window'}
+        if v not in valid:
+            raise ValueError(f'Rate limit strategy must be one of {valid}')
+        return v
+
+    class Config:
+        """Pydantic config."""
+        frozen = True
+
 class RedisConfig(BaseModel):
     """Redis cache configuration."""
 
@@ -144,6 +174,7 @@ class Settings(BaseModel):
     logging: LoggingConfig = LoggingConfig()
     jwt: JWTConfig = JWTConfig()
     redis: RedisConfig = RedisConfig()
+    rate_limit: RateLimitConfig = RateLimitConfig()
 
     # General settings
     environment: str = os.getenv("ENVIRONMENT", "development")

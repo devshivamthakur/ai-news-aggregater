@@ -1,11 +1,12 @@
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_admin, require_super_admin
+from app.api.rate_limit import ADMIN_LIMIT, limiter
 from app.api.schemas import (
     AdminStatsOut,
     AdminUserOut,
@@ -22,7 +23,8 @@ router = APIRouter()
     tags=["admin"],
     dependencies=[Depends(require_admin)],
 )
-def admin_flush_cache() -> dict:
+@limiter.limit(ADMIN_LIMIT)
+def admin_flush_cache(request: Request) -> dict:
     """Flush the Redis response cache (admin only)."""
     deleted = cache.flush()
     return {"status": "ok", "deleted_keys": deleted}
@@ -106,8 +108,10 @@ def admin_get_user(
     tags=["admin"],
     dependencies=[Depends(require_admin)],
 )
+@limiter.limit(ADMIN_LIMIT)
 @invalidate_on_update("admin_stats", "admin_users_list", "admin_user_by_id")
 def admin_update_user(
+    request: Request,
     user_id: int,
     body: AdminUserUpdate,
     db: Annotated[Session, Depends(get_db)],
@@ -135,8 +139,10 @@ def admin_update_user(
     tags=["admin"],
     dependencies=[Depends(require_super_admin)],
 )
+@limiter.limit(ADMIN_LIMIT)
 @invalidate_on_update("admin_stats", "admin_users_list", "admin_user_by_id")
 def admin_delete_user(
+    request: Request,
     user_id: int,
     db: Annotated[Session, Depends(get_db)],
 ) -> None:

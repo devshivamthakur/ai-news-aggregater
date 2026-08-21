@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_client_ip, get_current_user, get_db, require_admin
+from app.api.rate_limit import ADMIN_LIMIT, AUTH_LIMIT, limiter
 from app.api.schemas import (
     PasswordChange,
     RefreshTokenIn,
@@ -31,9 +32,10 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=TokenPairOut, tags=["auth"], dependencies=[Depends(require_admin)])
+@limiter.limit(AUTH_LIMIT)
 def register(
-    body: UserRegister,
     request: Request,
+    body: UserRegister,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenPairOut:
     """Register a new user account."""
@@ -67,9 +69,10 @@ def register(
 
 
 @router.post("/login", response_model=TokenPairOut, tags=["auth"])
+@limiter.limit(AUTH_LIMIT)
 def login(
-    body: UserLogin,
     request: Request,
+    body: UserLogin,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenPairOut:
     """Authenticate user and return token pair."""
@@ -114,7 +117,8 @@ def login(
 
 
 @router.post("/refresh", response_model=TokenPairOut, tags=["auth"])
-def refresh_token(body: RefreshTokenIn) -> TokenPairOut:
+@limiter.limit(AUTH_LIMIT)
+def refresh_token(request: Request, body: RefreshTokenIn) -> TokenPairOut:
     """Refresh access token using refresh token."""
     data = decode_refresh_token(body.refresh_token)
     if not data:

@@ -135,3 +135,19 @@ class NewsService:
             db.rollback()
             logger.error(f"Failed to create news: {e}")
             return None
+
+    def delete_all_news(self) -> int:
+        """Delete all news articles from the database.
+
+        Returns:
+            The number of deleted articles.
+        """
+        try:
+            num_deleted = self.db.query(News).delete()
+            self.db.commit()
+            logger.info(f"Deleted {num_deleted} news articles.")
+            return num_deleted
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Failed to delete all news: {e}")
+            raise

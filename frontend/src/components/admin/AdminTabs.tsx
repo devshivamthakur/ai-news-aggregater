@@ -1,8 +1,8 @@
 "use client";
 
-import { BarChart3, Users, Rss, Tag, Zap } from "lucide-react";
+import { BarChart3, Users, Rss, Tag, Zap, Trash2 } from "lucide-react";
 
-export type AdminTab = "overview" | "users" | "sources" | "categories" | "jobs";
+export type AdminTab = "overview" | "users" | "sources" | "categories" | "jobs" | "maintenance";
 
 interface AdminTabsProps {
   activeTab: AdminTab;
@@ -16,6 +16,7 @@ const TABS: { id: AdminTab; label: string; icon: React.ReactNode; adminOnly?: bo
   { id: "sources", label: "Sources", icon: <Rss className="w-4 h-4" />, adminOnly: true },
   { id: "categories", label: "Categories", icon: <Tag className="w-4 h-4" /> },
   { id: "jobs", label: "Jobs", icon: <Zap className="w-4 h-4" /> },
+  { id: "maintenance", label: "Maintenance", icon: <Trash2 className="w-4 h-4" />, adminOnly: true },
 ];
 
 export default function AdminTabs({ activeTab, onChange, isAdmin }: AdminTabsProps) {

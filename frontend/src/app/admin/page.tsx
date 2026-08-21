@@ -45,6 +45,10 @@ const JobsTab = dynamic(withChunkRetry(() => import("@/components/admin/JobsTab"
   ssr: false,
   loading: () => <ListRowSkeleton rows={3} />,
 });
+const MaintenanceTab = dynamic(withChunkRetry(() => import("@/components/admin/MaintenanceTab")), {
+  ssr: false,
+  loading: () => <ListRowSkeleton rows={2} />,
+});
 
 interface ConfirmState {
   title: string;
@@ -250,6 +254,24 @@ export default function AdminPage() {
     });
   };
 
+  const handleDeleteAllNews = async () => {
+    setConfirm({
+      title: "Delete all news?",
+      message: "This permanently removes every news article from the database. This cannot be undone.",
+      confirmLabel: "Delete All News",
+      danger: true,
+      action: async () => {
+        setPendingAction({ type: "delete-news" });
+        await runAction(async () => {
+          const result = await api.delete<{ message: string }>("/admin/news");
+          await fetchData({ silent: true });
+          toast.success(result.message || "All news deleted");
+        });
+        setPendingAction(null);
+      },
+    });
+  };
+
   const changeTab = (tab: AdminTab) => {
     startTabTransition(() => setActiveTab(tab));
   };
@@ -328,6 +350,13 @@ export default function AdminPage() {
             isFlushing={isActing("flush-cache")}
             onTriggerJob={handleTriggerJob}
             onFlushCache={handleFlushCache}
+          />
+        )}
+
+        {activeTab === "maintenance" && (
+          <MaintenanceTab
+            isDeletingNews={isActing("delete-news")}
+            onDeleteAllNews={handleDeleteAllNews}
           />
         )}
       </div>
