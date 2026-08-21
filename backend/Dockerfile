@@ -2,6 +2,9 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
+# Configure DNS for Render
+RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e .
 COPY . .
