@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,7 @@ router = APIRouter()
     dependencies=[Depends(require_admin)],
 )
 @limiter.limit(ADMIN_LIMIT)
-def admin_flush_cache(request: Request) -> dict:
+def admin_flush_cache(request: Request, response: Response) -> dict:
     """Flush the Redis response cache (admin only)."""
     deleted = cache.flush()
     return {"status": "ok", "deleted_keys": deleted}
@@ -112,6 +112,7 @@ def admin_get_user(
 @invalidate_on_update("admin_stats", "admin_users_list", "admin_user_by_id")
 def admin_update_user(
     request: Request,
+    response: Response,
     user_id: int,
     body: AdminUserUpdate,
     db: Annotated[Session, Depends(get_db)],
@@ -143,6 +144,7 @@ def admin_update_user(
 @invalidate_on_update("admin_stats", "admin_users_list", "admin_user_by_id")
 def admin_delete_user(
     request: Request,
+    response: Response,
     user_id: int,
     db: Annotated[Session, Depends(get_db)],
 ) -> None:

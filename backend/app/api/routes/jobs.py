@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.api.deps import require_admin
 from app.api.rate_limit import ADMIN_LIMIT, limiter
@@ -26,7 +26,7 @@ async def _aggregate_job() -> None:
     dependencies=[Depends(require_admin)],
 )
 @limiter.limit(ADMIN_LIMIT)
-async def trigger_aggregate(request: Request) -> JobAccepted:
+async def trigger_aggregate(request: Request, response: Response) -> JobAccepted:
     """Trigger a full aggregation cycle (admin only)."""
     asyncio.create_task(_aggregate_job())
     return JobAccepted(detail="Aggregation task scheduled")

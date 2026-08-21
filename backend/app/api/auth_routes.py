@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -35,6 +35,7 @@ router = APIRouter()
 @limiter.limit(AUTH_LIMIT)
 def register(
     request: Request,
+    response: Response,
     body: UserRegister,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenPairOut:
@@ -72,6 +73,7 @@ def register(
 @limiter.limit(AUTH_LIMIT)
 def login(
     request: Request,
+    response: Response,
     body: UserLogin,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenPairOut:
@@ -118,7 +120,7 @@ def login(
 
 @router.post("/refresh", response_model=TokenPairOut, tags=["auth"])
 @limiter.limit(AUTH_LIMIT)
-def refresh_token(request: Request, body: RefreshTokenIn) -> TokenPairOut:
+def refresh_token(request: Request, response: Response, body: RefreshTokenIn) -> TokenPairOut:
     """Refresh access token using refresh token."""
     data = decode_refresh_token(body.refresh_token)
     if not data:

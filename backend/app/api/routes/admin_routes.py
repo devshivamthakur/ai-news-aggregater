@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ router = APIRouter()
 @limiter.limit(ADMIN_LIMIT)
 def delete_all_news(
     request: Request,
+    response: Response,
     *,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.require_admin),
