@@ -9,7 +9,7 @@ from app.services.news_service import NewsService
 router = APIRouter()
 
 
-@router.delete("/news", status_code=status.HTTP_200_OK)
+@router.delete("/admin/news", status_code=status.HTTP_200_OK)
 @limiter.limit(ADMIN_LIMIT)
 def delete_all_news(
     request: Request,
