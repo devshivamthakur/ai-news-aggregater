@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -25,4 +26,7 @@ def delete_all_news(
     """
     news_service = NewsService(db)
     deleted_count = news_service.delete_all_news()
-    return {"message": f"Successfully deleted {deleted_count} news articles."}
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"message": f"Successfully deleted {deleted_count} news articles."},
+    )

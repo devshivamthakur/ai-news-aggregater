@@ -82,7 +82,7 @@ def create_app() -> FastAPI:
         title="AI News Aggregator",
         version="2.1.0",
         lifespan=lifespan,
-        # openapi_url=None
+        openapi_url=None
     )
 
     # Bind the shared limiter so route-level @limiter.limit() decorators work.
