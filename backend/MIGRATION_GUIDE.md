@@ -190,7 +190,7 @@ print(f"Created: {stats['created']}, Skipped: {stats['skipped']}")
 from ai_news_aggregater.config.settings import settings
 
 db_url = settings.database_url
-smtp_port = settings.smtp_port
+brevo_key = settings.brevo.api_key
 fetch_hour = settings.custom_fetch_hour
 ```
 
@@ -201,7 +201,7 @@ from ai_news_aggregater.config.settings import settings
 
 # Access organized configs
 db_url = settings.database.url
-smtp_port = settings.smtp.port
+brevo_key = settings.brevo.api_key
 fetch_hour = settings.scheduler.fetch_hour
 
 # Backward compatible (still works)

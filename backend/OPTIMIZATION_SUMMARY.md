@@ -55,8 +55,7 @@
 
 - Modular configuration classes:
   - `DatabaseConfig` - Database settings
-  - `SMTPConfig` - Email SMTP settings
-  - `SendGridConfig` - SendGrid settings
+  - `BrevoConfig` - Brevo email settings
   - `FetcherConfig` - Fetcher behavior
   - `SchedulerConfig` - Scheduling settings
   - `LoggingConfig` - Logging settings

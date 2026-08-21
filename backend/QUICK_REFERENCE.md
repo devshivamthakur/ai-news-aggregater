@@ -127,9 +127,9 @@ settings.database.url
 settings.database.pool_size
 
 # Email
-settings.smtp.server
-settings.smtp.port
-settings.smtp.username
+settings.brevo.api_key
+settings.brevo.sender_email
+settings.brevo.sender_name
 
 # Scheduler
 settings.scheduler.fetch_hour
@@ -408,9 +408,9 @@ alembic upgrade head    # Run all
 
 **Email Not Sending**
 ```bash
-# Check SMTP settings
-echo $SMTP_SERVER
-echo $SMTP_USERNAME
+# Check Brevo settings
+echo $BREVO_API_KEY
+echo $BREVO_SENDER_EMAIL
 # Test with logger
 export LOG_LEVEL=DEBUG
 ```

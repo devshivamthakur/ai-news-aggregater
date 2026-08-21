@@ -36,8 +36,7 @@ dependencies = [
     "requests>=2.33.1",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
-    "slowapi>=0.1.10",
-    "brevo>=2.0.0",
+    "brevo-python>=5.0.2",
 ]
 
 [project.optional-dependencies]

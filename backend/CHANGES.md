@@ -28,7 +28,7 @@
 ### Configuration
 - `ai_news_aggregater/config/settings.py`
   - Refactored into modular configuration classes
-  - DatabaseConfig, SMTPConfig, SendGridConfig, FetcherConfig, SchedulerConfig, LoggingConfig
+  - DatabaseConfig, BrevoConfig, FetcherConfig, SchedulerConfig, LoggingConfig
   - Maintained backward compatibility with properties
   - Added validation and documentation
 
@@ -87,7 +87,7 @@ settings.smtp_port
 **After:** Organized structure
 ```python
 settings.database.url
-settings.smtp.port
+settings.brevo.api_key
 ```
 - Better IDE support
 - Type hints

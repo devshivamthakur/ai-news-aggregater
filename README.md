@@ -62,7 +62,7 @@ The platform includes a full admin dashboard for managing users, ingestion sourc
 | Database | PostgreSQL, Redis (caching) |
 | AI | OpenAI API (GPT-4o-mini for summarization) |
 | Auth | JWT (python-jose), bcrypt |
-| Email | aiosmtplib, Jinja2 templates |
+| Email | Brevo API, Jinja2 templates |
 | Scheduling | APScheduler |
 | Deployment | Docker, Render (backend), Vercel (frontend) |
 
@@ -170,10 +170,11 @@ JWT_SECRET_KEY=change-me-in-production
 # OpenAI
 OPENAI_API_KEY=sk-...
 
-# SMTP
-SMTP_SERVER=smtp.gmail.com
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+# Brevo
+BREVO_ENABLED=true
+BREVO_API_KEY=your-api-key
+BREVO_SENDER_EMAIL=your-verified@email.com
+BREVO_SENDER_NAME=AIPulse
 
 # App
 API_KEY=your-admin-key

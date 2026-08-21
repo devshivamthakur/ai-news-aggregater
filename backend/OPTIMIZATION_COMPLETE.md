@@ -178,7 +178,7 @@ settings.smtp_port
 
 # After: Organized configuration
 settings.database.url
-settings.smtp.port
+settings.brevo.api_key
 # Type hints, validation, better organization
 ```
 

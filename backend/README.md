@@ -10,7 +10,7 @@ A modern AI-powered news aggregator with **Next.js frontend** and **FastAPI back
 - **Admin dashboard**: manage users, sources, and trigger jobs
 - **RSS & YouTube ingestion** from database-configured sources
 - **AI-powered analysis**: OpenAI summarizes and categorizes every article
-- **Personalized email digests** via SMTP (Jinja2 templates)
+- **Personalized email digests** via Brevo (Jinja2 templates)
 - **APScheduler** for daily aggregation at configurable hour
 - **PostgreSQL** persistence with SQLAlchemy ORM
 - **Docker** support for easy deployment
@@ -123,10 +123,11 @@ JWT_SECRET_KEY=change-me-in-production
 # OpenAI
 OPENAI_API_KEY=sk-...
 
-# SMTP
-SMTP_SERVER=smtp.gmail.com
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+# Brevo
+BREVO_ENABLED=true
+BREVO_API_KEY=your-api-key
+BREVO_SENDER_EMAIL=your-verified@email.com
+BREVO_SENDER_NAME=AIPulse
 
 # App
 API_KEY=your-admin-key
