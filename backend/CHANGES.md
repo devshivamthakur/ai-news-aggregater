@@ -81,7 +81,7 @@ news, is_new = service.add_article(...)
 **Before:** Flat settings
 ```python
 settings.database_url
-settings.smtp_port
+settings.brevo.api_key
 ```
 
 **After:** Organized structure
