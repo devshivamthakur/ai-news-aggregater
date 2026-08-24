@@ -31,7 +31,7 @@ from app.models import User, UserRole, UserStatus
 router = APIRouter()
 
 
-@router.post("/register", response_model=TokenPairOut, tags=["auth"], dependencies=[Depends(require_admin)])
+@router.post("/register", response_model=TokenPairOut, tags=["auth"])
 @limiter.limit(AUTH_LIMIT)
 def register(
     request: Request,
