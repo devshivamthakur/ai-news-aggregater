@@ -41,12 +41,10 @@ class AggregationService:
             logger.warning(f"User has no interests: {email}")
             articles = self.news_service.get_recent_news(limit)
         else:
-            # Get all news and filter by user interests
-            all_news = self.news_service.get_all_news()
-            articles = [
-                n for n in all_news
-                if any(interest.lower() in n.category.lower() for interest in user.interests)
-            ][:limit]
+            articles = self.news_service.get_news_by_categories(
+                user.interests,
+                limit
+            )
 
         return {
             'user': {

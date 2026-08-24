@@ -224,6 +224,7 @@ CONTENT:
             try:
                 from app.models.category import Category
                 from app.storage.db import SessionLocal
+                from sqlalchemy.exc import SQLAlchemyError
                 db = SessionLocal()
                 try:
                     db_categories = db.query(Category).filter(Category.is_active).all()
@@ -231,10 +232,10 @@ CONTENT:
                         category_str = "\n".join(f"- {c.name}" for c in db_categories)
                 finally:
                     db.close()
-            except Exception:
+            except (SQLAlchemyError, ImportError, OSError) as e:
                 logger.warning(
                     "Could not fetch categories from DB inside "
-                    "ContentAnalyzer, using defaults"
+                    "ContentAnalyzer, using defaults: %s", e
                 )
 
         if not category_str:

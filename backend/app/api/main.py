@@ -93,8 +93,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "Accept"],
     )
 
     # Apply the default per-route rate limit to every endpoint.
@@ -113,7 +113,8 @@ def create_app() -> FastAPI:
         )
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'",
         )
         response.headers.setdefault(
             "Strict-Transport-Security",

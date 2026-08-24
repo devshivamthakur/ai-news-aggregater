@@ -43,6 +43,12 @@ class NewsRepository(BaseRepository):
         """Get all news."""
         return self.db.query(self.model).all()
 
+    def get_by_categories(self, categories: list[str], limit: int = 50) -> list[News]:
+        """Get recent news articles matching any of the given categories."""
+        return self.db.query(self.model).filter(
+            self.model.category.in_(categories)
+        ).order_by(self.model.created_at.desc()).limit(limit).all()
+
 
 class NewsService:
     """Service layer for News operations."""

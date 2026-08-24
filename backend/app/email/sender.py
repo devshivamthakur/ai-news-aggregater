@@ -104,7 +104,7 @@ class EmailSender:
         articles: list[dict] = []
         for news_item in news_items:
             category = getattr(news_item, "category", None)
-            if user_interests and category not in user_interests:
+            if user_interests and category and category not in user_interests:
                 continue
             news_type = getattr(news_item, "news_type", None)
             articles.append(
@@ -164,7 +164,7 @@ class EmailSender:
 
             subject = f"AIPulse Digest — {context['digest_date']}"
 
-            self.send_email(user_email, subject, html_body, is_html=True)
+            return self.send_email(user_email, subject, html_body, is_html=True)
 
         except Exception as e:
             logger.error(f"Failed to send news digest to {user_email}: {e}")

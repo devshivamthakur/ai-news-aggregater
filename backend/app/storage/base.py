@@ -1,6 +1,7 @@
 from typing import Any, TypeVar
 
 from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.logging.logger import logger
@@ -42,12 +43,16 @@ class BaseRepository[T]:
             self.db.refresh(obj)
             logger.info(f"Created new {self.model.__name__}")
             return obj, True
-        except Exception as e:
+        except IntegrityError as e:
             self.db.rollback()
             if skip_if_exists:
-                logger.warning(f"Duplicate {self.model.__name__}, returning existing: {e}")
+                logger.warning(f"Duplicate {self.model.__name__}, returning existing")
                 return obj, False
-            logger.error(f"Error creating {self.model.__name__}: {e}")
+            logger.error(f"Integrity error creating {self.model.__name__}: {e}")
+            raise
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"Database error creating {self.model.__name__}: {e}")
             raise
 
     def get_by_id(self, id: int) -> T | None:

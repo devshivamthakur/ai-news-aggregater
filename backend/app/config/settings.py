@@ -78,10 +78,20 @@ class SchedulerConfig(BaseModel):
 class JWTConfig(BaseModel):
     """JWT settings for user sessions."""
 
-    secret_key: str = os.getenv("JWT_SECRET_KEY", "dev-insecure-change-me")
+    secret_key: str = os.getenv("JWT_SECRET_KEY", "")
     algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
     access_token_expire_minutes: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
     refresh_token_expire_days: int = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+    @field_validator('secret_key')
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Ensure JWT secret key is set and not the default insecure value."""
+        if not v or v == "dev-insecure-change-me":
+            raise ValueError("JWT_SECRET_KEY must be set to a secure random value (min 32 chars)")
+        if len(v) < 32:
+            raise ValueError("JWT_SECRET_KEY must be at least 32 characters long")
+        return v
 
     class Config:
         """Pydantic config."""
