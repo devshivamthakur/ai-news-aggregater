@@ -31,7 +31,11 @@ def get_url() -> str:
 
 def _reconcile_orphaned_revision(connection) -> None:
     """If DB alembic_version contains an unknown revision or missing schema columns, reset version so migrations run."""
+    inspector = inspect(connection)
     try:
+        if "alembic_version" not in inspector.get_table_names():
+            return  # Table doesn't exist, probably a fresh DB. Nothing to do.
+
         res = connection.execute(text("SELECT version_num FROM alembic_version")).fetchone()
         should_reset = False
         if res and res[0]:
@@ -44,16 +48,15 @@ def _reconcile_orphaned_revision(connection) -> None:
 
             if not should_reset:
                 # Also verify schema columns: if users table exists but missing 'interests', reset version so Alembic applies migration scripts
-                inspector = inspect(connection)
-                tables = set(inspector.get_table_names())
+                tables = inspector.get_table_names()
                 if "users" in tables:
                     user_cols = {c["name"] for c in inspector.get_columns("users")}
                     if "interests" not in user_cols:
                         should_reset = True
 
         if should_reset:
-            connection.execute(text("DELETE FROM alembic_version"))
-            connection.commit()
+            with connection.begin():
+                connection.execute(text("DELETE FROM alembic_version"))
     except Exception:
         pass
 
