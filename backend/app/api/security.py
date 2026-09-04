@@ -18,7 +18,9 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("ascii"))
 
 
-def create_access_token(*, subject: str, role: str = "user") -> str:
+def create_access_token(
+    *, subject: str, role: str = "user", expires_delta: timedelta | None = None
+) -> str:
     """Create a JWT access token with role claims."""
     expire = datetime.now(timezone.utc) + (
         timedelta(minutes=settings.jwt.access_token_expire_minutes)
