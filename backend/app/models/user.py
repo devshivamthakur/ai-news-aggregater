@@ -142,7 +142,7 @@ class User(Base):
         """Check if account is currently locked."""
         if self.locked_until is None:
             return False
-        return datetime.now(UTC) < self.locked_until
+        return datetime.now(timezone.utc) < self.locked_until
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

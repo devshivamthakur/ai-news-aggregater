@@ -97,7 +97,7 @@ class YouTubeScraper:
                 logger.warning(f"No videos found for channel {channel_id}")
                 return []
 
-            cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             videos = []
 
             for entry in result["entries"]:
@@ -110,10 +110,10 @@ class YouTubeScraper:
                         )
                         continue
 
-                    published_at = datetime.fromtimestamp(timestamp, tz=UTC)
+                    published_at = datetime.fromtimestamp(timestamp, tz=timezone.utc)
                     if published_at < cutoff_time:
                         continue
-
+                    
                     # Skip shorts, yt-dlp may not always have a clear flag
                     if "shorts" in entry.get("title", "").lower() or "/shorts/" in entry.get("url", ""):
                         logger.debug(f"Skipping short: {entry.get('title')}")
@@ -175,7 +175,7 @@ class YouTubeScraper:
                 logger.warning(f"No videos found for channel {channel_id}")
                 return []
 
-            cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             videos = []
 
             for entry in feed.entries:
@@ -185,7 +185,7 @@ class YouTubeScraper:
                     continue
 
                 try:
-                    published_time = datetime(*entry.published_parsed[:6], tzinfo=UTC)
+                    published_time = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
                     if published_time >= cutoff_time:
                         video_id = self._extract_video_id(entry.link)
                         video = ChannelVideo(

@@ -132,7 +132,7 @@ class BaseFetcher(ABC):
         """
         if isinstance(date, datetime):
             return date
-        return datetime.now(UTC)
+        return datetime.now(timezone.utc)
 
 
 class FetcherRegistry:

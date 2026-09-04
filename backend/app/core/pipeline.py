@@ -221,7 +221,7 @@ def _store_news_items(
                     published_at=(
                         news_item.published_at
                         if hasattr(news_item, "published_at")
-                        else datetime.now(UTC)
+                        else datetime.now(timezone.utc)
                     ),
                     news_type=news_type,
                     fetch_hour=current_hour,
@@ -404,8 +404,8 @@ async def aggregate_and_email() -> None:
     """
     await asyncio.to_thread(create_tables)
     try:
-        current_hour = datetime.now(UTC).hour
-        current_time = datetime.now(UTC)
+        current_hour = datetime.now(timezone.utc).hour
+        current_time = datetime.now(timezone.utc)
         lookback = settings.aggregation_lookback_hours
         per_feed_limit = settings.aggregation_rss_per_feed_limit
 

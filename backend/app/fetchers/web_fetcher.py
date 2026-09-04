@@ -51,7 +51,7 @@ class WebScraper:
                 title=title,
                 content=content,
                 url=url,
-                published_at=datetime.now(UTC),
+                published_at=datetime.now(timezone.utc),
                 source=source_name
             )
         except requests.RequestException as e:

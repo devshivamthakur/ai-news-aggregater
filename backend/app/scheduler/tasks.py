@@ -21,7 +21,7 @@ from app.logging.logger import logger
 def run_daily_aggregation() -> None:
     """Run the daily news aggregation and emailing."""
     logger.info("Starting daily aggregation at hour %s...", settings.scheduler.fetch_hour)
-    logger.info("Timestamp: %s", datetime.now(UTC).isoformat())
+    logger.info("Timestamp: %s", datetime.now(timezone.utc).isoformat())
     asyncio.run(aggregate_and_email())
 
 

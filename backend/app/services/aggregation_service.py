@@ -54,7 +54,7 @@ class AggregationService:
             },
             'articles': articles,
             'article_count': len(articles),
-            'generated_at': datetime.now(UTC)
+            'generated_at': datetime.now(timezone.utc)
         }
 
     def process_fetched_articles(
@@ -82,7 +82,7 @@ class AggregationService:
                     summary=article.get('summary', ''),
                     category=article.get('category', 'Uncategorized'),
                     source=source,
-                    published_at=article.get('published_at', datetime.now(UTC)),
+                    published_at=article.get('published_at', datetime.now(timezone.utc)),
                     news_type=article.get('news_type', NewsType.ARTICLE)
                 )
 

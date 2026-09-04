@@ -154,5 +154,5 @@ def admin_delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     user.is_active = False
-    user.deleted_at = datetime.now(UTC)
+    user.deleted_at = datetime.now(timezone.utc)
     db.commit()

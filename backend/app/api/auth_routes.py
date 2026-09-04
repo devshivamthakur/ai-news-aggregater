@@ -231,7 +231,7 @@ def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     user.password_hash = hash_password(body.new_password)
-    user.password_changed_at = datetime.now(UTC)
+    user.password_changed_at = datetime.now(timezone.utc)
     db.commit()
 
     return {"message": "Password changed successfully"}

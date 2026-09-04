@@ -283,11 +283,11 @@ class IngestionSourceService:
             return
 
         row.total_fetches += 1
-        row.last_fetched_at = datetime.now(UTC)
+        row.last_fetched_at = datetime.now(timezone.utc)
 
         if error:
             row.consecutive_errors += 1
-            row.last_error_at = datetime.now(UTC)
+            row.last_error_at = datetime.now(timezone.utc)
             row.last_error_message = error
             if row.consecutive_errors >= 5:
                 row.status = SourceStatus.ERROR

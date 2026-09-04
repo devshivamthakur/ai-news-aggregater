@@ -43,7 +43,7 @@ class NewsService:
                 category=category,
                 source=source,
                 url=url,
-                published_at=published_at or datetime.now(UTC),
+                published_at=published_at or datetime.now(timezone.utc),
                 news_type=news_type,
                 status=NewsStatus.PENDING,
                 fetch_hour=fetch_hour,

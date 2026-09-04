@@ -35,10 +35,10 @@ def sample_news(test_db: Session) -> News:
         category="AI",
         source="Test Source",
         url="https://example.com/test",
-        published_at=datetime.now(UTC),
+        published_at=datetime.now(timezone.utc),
         news_type=NewsType.ARTICLE,
         fetch_hour=8,
-        fetch_date=datetime.now(UTC)
+        fetch_date=datetime.now(timezone.utc)
     )
     test_db.add(news)
     test_db.commit()
@@ -127,7 +127,7 @@ class TestNewsService:
             summary="New summary",
             category="Tech",
             source="New Source",
-            published_at=datetime.now(UTC)
+            published_at=datetime.now(timezone.utc)
         )
 
         assert not is_new
@@ -156,7 +156,7 @@ class TestNewsService:
             summary="Summary",
             category="Technology",
             source="Test",
-            published_at=datetime.now(UTC)
+            published_at=datetime.now(timezone.utc)
         )
 
         ai_articles = service.get_by_category("AI")

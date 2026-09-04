@@ -33,7 +33,7 @@ class RSSScraper:
                     feed.bozo_exception,
                 )
 
-            cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             posts = []
 
             for entry in feed.entries:
