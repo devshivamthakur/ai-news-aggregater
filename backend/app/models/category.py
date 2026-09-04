@@ -8,7 +8,7 @@ from app.models.base import Base
 
 
 def _utcnow():
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class Category(Base):
