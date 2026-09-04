@@ -1,6 +1,6 @@
 """Testing utilities and fixtures for the aggregator."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine

@@ -1,7 +1,7 @@
 """Enterprise Ingestion Source model with health tracking and metadata."""
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,

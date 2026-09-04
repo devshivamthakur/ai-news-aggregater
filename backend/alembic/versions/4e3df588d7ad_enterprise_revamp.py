@@ -140,6 +140,8 @@ def upgrade() -> None:
         op.add_column(
             "users", sa.Column("email_verified_at", sa.DateTime(), nullable=True)
         )
+    if "interests" not in user_cols:
+        op.add_column("users", sa.Column("interests", sa.JSON(), nullable=True))
     if "digest_frequency" not in user_cols:
         op.add_column(
             "users",

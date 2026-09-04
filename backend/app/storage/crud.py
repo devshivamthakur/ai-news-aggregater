@@ -1,6 +1,6 @@
 """CRUD operations for storage models."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError

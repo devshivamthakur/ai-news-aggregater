@@ -1,6 +1,6 @@
 """News service for managing news articles in the database."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session

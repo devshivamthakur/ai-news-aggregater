@@ -1,6 +1,6 @@
 """Enterprise security module with JWT refresh tokens, RBAC, and rate limiting."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from jose import JWTError, jwt
@@ -20,7 +20,11 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(*, subject: str, role: str = "user") -> str:
     """Create a JWT access token with role claims."""
-    expire = datetime.now(UTC) + timedelta(minutes=settings.jwt.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + (
+        timedelta(minutes=settings.jwt.access_token_expire_minutes)
+        if expires_delta is None
+        else expires_delta
+    )
     payload = {
         "sub": subject,
         "exp": expire,

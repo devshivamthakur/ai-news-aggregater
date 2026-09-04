@@ -1,7 +1,7 @@
 """Abstract base fetcher for consistent news fetching patterns."""
 
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import requests

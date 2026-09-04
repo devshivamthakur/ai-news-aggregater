@@ -6,9 +6,10 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, inspect, pool, text
 
 from alembic import context
+from alembic.script import ScriptDirectory
 from app.config.settings import settings
 from app.models import Base
 
@@ -26,6 +27,35 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     return settings.database.url
+
+
+def _reconcile_orphaned_revision(connection) -> None:
+    """If DB alembic_version contains an unknown revision or missing schema columns, reset version so migrations run."""
+    try:
+        res = connection.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+        should_reset = False
+        if res and res[0]:
+            db_rev = res[0]
+            script = ScriptDirectory.from_config(config)
+            try:
+                script.get_revision(db_rev)
+            except Exception:
+                should_reset = True
+
+            if not should_reset:
+                # Also verify schema columns: if users table exists but missing 'interests', reset version so Alembic applies migration scripts
+                inspector = inspect(connection)
+                tables = set(inspector.get_table_names())
+                if "users" in tables:
+                    user_cols = {c["name"] for c in inspector.get_columns("users")}
+                    if "interests" not in user_cols:
+                        should_reset = True
+
+        if should_reset:
+            connection.execute(text("DELETE FROM alembic_version"))
+            connection.commit()
+    except Exception:
+        pass
 
 
 def run_migrations_offline() -> None:
@@ -50,6 +80,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        _reconcile_orphaned_revision(connection)
+
         context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():

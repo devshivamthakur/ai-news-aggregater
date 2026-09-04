@@ -1,7 +1,7 @@
 """Enterprise User model with RBAC, audit fields, and soft deletes."""
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
@@ -19,7 +19,7 @@ from app.models.base import Base
 
 
 def _utcnow():
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class UserRole(enum.StrEnum):

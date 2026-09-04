@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import types
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from app.config.settings import settings
 from app.email.sender import email_sender

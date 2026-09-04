@@ -1,6 +1,6 @@
 """Enterprise authentication and account routes with RBAC and refresh tokens."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response

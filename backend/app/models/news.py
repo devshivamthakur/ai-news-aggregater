@@ -1,7 +1,7 @@
 """Enterprise News model with full-text search, metadata, and audit trail."""
 
 import enum
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,

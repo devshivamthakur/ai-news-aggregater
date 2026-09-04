@@ -276,7 +276,7 @@ class IngestionSourceService:
         error: str | None = None,
     ) -> None:
         """Record a fetch attempt for health tracking."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
 
         row = self._db.query(IngestionSource).filter(IngestionSource.id == source_id).first()
         if not row:

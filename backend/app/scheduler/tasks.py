@@ -7,7 +7,7 @@ When running the FastAPI app (`ai_news_aggregater.api.main:app`), prefer the in-
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler

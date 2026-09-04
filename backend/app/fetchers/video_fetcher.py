@@ -1,6 +1,6 @@
 import os
 import socket
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import feedparser
 import yt_dlp
