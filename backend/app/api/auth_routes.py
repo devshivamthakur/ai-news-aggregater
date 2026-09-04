@@ -94,7 +94,7 @@ def login(
         # Increment failed login attempts
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
-            user.locked_until = datetime.now(UTC) + datetime.timedelta(minutes=30)
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -104,7 +104,7 @@ def login(
     # Reset failed login attempts on successful login
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login_at = datetime.now(UTC)
+    user.last_login_at = datetime.now(timezone.utc)
     user.last_login_ip = get_client_ip(request)
     db.commit()
 

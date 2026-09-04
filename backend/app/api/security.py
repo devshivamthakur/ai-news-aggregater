@@ -40,7 +40,7 @@ def create_access_token(*, subject: str, role: str = "user") -> str:
 
 def create_refresh_token(*, subject: str) -> str:
     """Create a JWT refresh token with longer expiry."""
-    expire = datetime.now(UTC) + timedelta(days=settings.jwt.refresh_token_expire_days)
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt.refresh_token_expire_days)
     payload = {
         "sub": subject,
         "exp": expire,
