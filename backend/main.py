@@ -7,7 +7,7 @@ from app.services.user_service import UserService
 
 from app.config.settings import settings
 from app.email.sender import EmailSender
-from app.fetchers.blog_fetcher import RSSFeedScraper
+from app.fetchers.blog_fetcher import RSSScraper
 from app.fetchers.video_fetcher import YouTubeScraper
 from app.fetchers.web_fetcher import WebScraper
 from app.logging.logger import logger
@@ -39,18 +39,9 @@ def fetch_and_store_articles():
 
     try:
         # Initialize fetchers
-        web_scraper = WebScraper(
-            timeout=settings.fetcher.timeout,
-            max_retries=settings.fetcher.max_retries
-        )
-        rss_scraper = RSSFeedScraper(
-            timeout=settings.fetcher.timeout,
-            max_retries=settings.fetcher.max_retries
-        )
-        video_scraper = YouTubeScraper(
-            timeout=settings.fetcher.timeout,
-            max_retries=settings.fetcher.max_retries
-        )
+        web_scraper = WebScraper()
+        rss_scraper = RSSScraper()
+        video_scraper = YouTubeScraper()
 
         # Fetch from each source and process
         sources = [

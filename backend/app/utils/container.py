@@ -130,21 +130,21 @@ class ServiceContainer(Container):
 
     def _register_fetchers(self, settings: any):
         """Register all fetcher factories."""
-        from app.fetchers.blog_fetcher import RSSFeedScraper
+        from app.fetchers.blog_fetcher import RSSScraper
         from app.fetchers.video_fetcher import YouTubeScraper
         from app.fetchers.web_fetcher import WebScraper
 
         self.register_factory(
             'web_fetcher',
-            lambda: WebScraper(settings.fetcher.timeout, settings.fetcher.max_retries)
+            lambda: WebScraper()
         )
         self.register_factory(
             'rss_fetcher',
-            lambda: RSSFeedScraper(settings.fetcher.timeout, settings.fetcher.max_retries)
+            lambda: RSSScraper()
         )
         self.register_factory(
             'video_fetcher',
-            lambda: YouTubeScraper(settings.fetcher.timeout, settings.fetcher.max_retries)
+            lambda: YouTubeScraper()
         )
 
 

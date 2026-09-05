@@ -100,7 +100,7 @@ class RSSScraper:
             parsed = getattr(entry, field, None)
             if parsed:
                 try:
-                    return datetime(*parsed[:6], tzinfo=UTC)
+                    return datetime(*parsed[:6], tzinfo=timezone.utc)
                 except (TypeError, ValueError):
                     continue
 

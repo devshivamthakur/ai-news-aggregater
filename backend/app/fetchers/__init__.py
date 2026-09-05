@@ -17,7 +17,7 @@ from app.fetchers.web_fetcher import (
 __all__ = [
     # Classes
     "WebScraper",
-    "RSSFeedScraper",
+    "RSSScraper",
     "YouTubeScraper",
     # Web Scraper Functions
     "fetch_web_content",
