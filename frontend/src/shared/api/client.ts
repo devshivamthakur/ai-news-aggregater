@@ -43,7 +43,10 @@ interface PydanticValidationError {
  * validation error objects — never render the raw value as a React child.
  */
 function extractErrorMessage(error: AxiosError<{ detail?: unknown }>): string {
-  const detail = error.response?.data?.detail;
+  const body = error.response?.data as { detail?: unknown } | PydanticValidationError[] | undefined;
+  // FastAPI sends validation failures (422) as a *bare array* of error objects,
+  // while HTTPException-style failures wrap the same shapes in `detail`.
+  const detail = Array.isArray(body) ? body : body?.detail;
 
   if (typeof detail === "string" && detail.trim()) {
     return detail;
