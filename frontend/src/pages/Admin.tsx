@@ -1,54 +1,44 @@
-"use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useEffect, useState, useTransition, Suspense } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { api, IngestionSource, AdminStatsOut, AdminUser, Category, ApiError } from "@/lib/api";
-import { RefreshCw } from "lucide-react";
+import { api, IngestionSource, AdminStatsOut, AdminUser, Category, ApiError } from "@/shared/api";
+import { RefreshCw, ShieldCheck, AlertCircle } from "lucide-react";
 import AdminTabs, { AdminTab } from "@/components/admin/AdminTabs";
 import PageLoader from "@/components/ui/PageLoader";
 import { StatCardSkeleton, ListRowSkeleton } from "@/components/ui/Skeleton";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { withChunkRetry } from "@/lib/chunkRetry";
+import lazyWithRetry from "@/shared/lazyWithRetry";
 import { NewSourceInput } from "@/components/admin/SourcesTab";
 import { NewCategoryInput } from "@/components/admin/CategoriesTab";
 
-// Lazy-load tab bundles so only the active tab ships in the client bundle.
-// withChunkRetry handles transient dev-mode chunk failures (stale URLs after
-// a recompile) by retrying before surfacing to the error boundary.
-const OverviewTab = dynamic(withChunkRetry(() => import("@/components/admin/OverviewTab")), {
-  ssr: false,
-  loading: () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+// Code-split each tab so only the active one ships in the initial bundle.
+// lazyWithRetry retries transient dev-mode chunk failures (stale URLs after a
+// recompile) before surfacing to the error boundary.
+const OverviewTab = lazyWithRetry(() => import("@/components/admin/OverviewTab"));
+const UsersTab = lazyWithRetry(() => import("@/components/admin/UsersTab"));
+const SourcesTab = lazyWithRetry(() => import("@/components/admin/SourcesTab"));
+const CategoriesTab = lazyWithRetry(() => import("@/components/admin/CategoriesTab"));
+const JobsTab = lazyWithRetry(() => import("@/components/admin/JobsTab"));
+const MaintenanceTab = lazyWithRetry(() => import("@/components/admin/MaintenanceTab"));
+
+/** Shown while a tab's chunk loads. */
+const TAB_FALLBACK: Record<AdminTab, React.ReactNode> = {
+  overview: (
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <StatCardSkeleton key={i} />
       ))}
     </div>
   ),
-});
-const UsersTab = dynamic(withChunkRetry(() => import("@/components/admin/UsersTab")), {
-  ssr: false,
-  loading: () => <ListRowSkeleton rows={6} />,
-});
-const SourcesTab = dynamic(withChunkRetry(() => import("@/components/admin/SourcesTab")), {
-  ssr: false,
-  loading: () => <ListRowSkeleton rows={5} />,
-});
-const CategoriesTab = dynamic(withChunkRetry(() => import("@/components/admin/CategoriesTab")), {
-  ssr: false,
-  loading: () => <ListRowSkeleton rows={5} />,
-});
-const JobsTab = dynamic(withChunkRetry(() => import("@/components/admin/JobsTab")), {
-  ssr: false,
-  loading: () => <ListRowSkeleton rows={3} />,
-});
-const MaintenanceTab = dynamic(withChunkRetry(() => import("@/components/admin/MaintenanceTab")), {
-  ssr: false,
-  loading: () => <ListRowSkeleton rows={2} />,
-});
+  users: <ListRowSkeleton rows={6} />,
+  sources: <ListRowSkeleton rows={5} />,
+  categories: <ListRowSkeleton rows={5} />,
+  jobs: <ListRowSkeleton rows={3} />,
+  maintenance: <ListRowSkeleton rows={2} />,
+};
 
 interface ConfirmState {
   title: string;
@@ -60,7 +50,7 @@ interface ConfirmState {
 
 export default function AdminPage() {
   const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -79,9 +69,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/login");
+      navigate("/login");
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
@@ -285,10 +275,15 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage your news aggregator</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-glow">
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Admin dashboard</h1>
+            <p className="mt-0.5 text-slate-500">Keep an eye on readers, sources and jobs.</p>
+          </div>
         </div>
         <Button
           variant="secondary"
@@ -302,68 +297,71 @@ export default function AdminPage() {
 
       <AdminTabs activeTab={activeTab} onChange={changeTab} isAdmin={isAdmin} />
 
-      <div className={isPendingTab ? "opacity-60 transition-opacity duration-200" : "transition-opacity duration-200"}>
-        {activeTab === "overview" &&
-          (isLoading && !stats ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <StatCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : stats ? (
-            <OverviewTab stats={stats} />
-          ) : null)}
+      <div
+        className={
+          isPendingTab ? "opacity-60 transition-opacity duration-200" : "transition-opacity duration-200"
+        }
+      >
+        <Suspense fallback={TAB_FALLBACK[activeTab]}>
+          {activeTab === "overview" &&
+            (isLoading && !stats ? (
+              TAB_FALLBACK.overview
+            ) : stats ? (
+              <OverviewTab stats={stats} />
+            ) : null)}
 
-        {activeTab === "users" && <UsersTab users={users} isLoading={isLoading} />}
+          {activeTab === "users" && <UsersTab users={users} isLoading={isLoading} />}
 
-        {activeTab === "sources" && (
-          <SourcesTab
-            sources={sources}
-            isLoading={isLoading}
-            isAdding={isActing("add-source")}
-            isSyncing={isActing("sync-sources")}
-            deletingId={isActing("delete-source") ? pendingAction?.id : undefined}
-            onAddSource={handleAddSource}
-            onDeleteSource={handleDeleteSource}
-            onSyncDefaults={handleSyncDefaults}
-          />
-        )}
+          {activeTab === "sources" && (
+            <SourcesTab
+              sources={sources}
+              isLoading={isLoading}
+              isAdding={isActing("add-source")}
+              isSyncing={isActing("sync-sources")}
+              deletingId={isActing("delete-source") ? pendingAction?.id : undefined}
+              onAddSource={handleAddSource}
+              onDeleteSource={handleDeleteSource}
+              onSyncDefaults={handleSyncDefaults}
+            />
+          )}
 
-        {activeTab === "categories" && (
-          <CategoriesTab
-            categories={categories}
-            isLoading={isLoading}
-            isAdding={isActing("add-category")}
-            isSyncing={isActing("sync-categories")}
-            deletingId={isActing("delete-category") ? pendingAction?.id : undefined}
-            togglingId={isActing("toggle-category") ? pendingAction?.id : undefined}
-            onAddCategory={handleAddCategory}
-            onDeleteCategory={handleDeleteCategory}
-            onToggleCategory={handleToggleCategory}
-            onSyncDefaults={handleSyncDefaultCategories}
-          />
-        )}
+          {activeTab === "categories" && (
+            <CategoriesTab
+              categories={categories}
+              isLoading={isLoading}
+              isAdding={isActing("add-category")}
+              isSyncing={isActing("sync-categories")}
+              deletingId={isActing("delete-category") ? pendingAction?.id : undefined}
+              togglingId={isActing("toggle-category") ? pendingAction?.id : undefined}
+              onAddCategory={handleAddCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onToggleCategory={handleToggleCategory}
+              onSyncDefaults={handleSyncDefaultCategories}
+            />
+          )}
 
-        {activeTab === "jobs" && (
-          <JobsTab
-            isTriggering={isActing("trigger-job")}
-            isFlushing={isActing("flush-cache")}
-            onTriggerJob={handleTriggerJob}
-            onFlushCache={handleFlushCache}
-          />
-        )}
+          {activeTab === "jobs" && (
+            <JobsTab
+              isTriggering={isActing("trigger-job")}
+              isFlushing={isActing("flush-cache")}
+              onTriggerJob={handleTriggerJob}
+              onFlushCache={handleFlushCache}
+            />
+          )}
 
-        {activeTab === "maintenance" && (
-          <MaintenanceTab
-            isDeletingNews={isActing("delete-news")}
-            onDeleteAllNews={handleDeleteAllNews}
-          />
-        )}
+          {activeTab === "maintenance" && (
+            <MaintenanceTab
+              isDeletingNews={isActing("delete-news")}
+              onDeleteAllNews={handleDeleteAllNews}
+            />
+          )}
+        </Suspense>
       </div>
 
       {/* Global error banner */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm animate-fade-in">
+        <div className="animate-fade-in flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
           <Button variant="secondary" size="sm" onClick={() => fetchData()}>
             Retry

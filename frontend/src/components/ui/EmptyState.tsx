@@ -8,13 +8,13 @@ interface EmptyStateProps {
 /** Consistent empty-state placeholder used across pages. */
 export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="card text-center py-12 animate-fade-in">
-      <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
+    <div className="card animate-fade-in py-14 text-center">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-accent-50 text-brand-500 ring-1 ring-brand-100">
         {icon}
       </div>
-      <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-      {description && <p className="text-gray-600 mt-1 text-sm">{description}</p>}
-      {action && <div className="mt-4 flex justify-center">{action}</div>}
+      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+      {description && <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500">{description}</p>}
+      {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { cn } from "@/shared/cn";
 
 const SIZES = {
   sm: "h-4 w-4 border-2",

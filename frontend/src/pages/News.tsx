@@ -1,10 +1,8 @@
-"use client";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { api, NewsItem, NewsListOut, ApiError, Category } from "@/lib/api";
+import { api, NewsItem, NewsListOut, ApiError, Category } from "@/shared/api";
 import {
   ExternalLink,
   Search,
@@ -14,20 +12,22 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Sparkles,
   X,
+  Filter,
 } from "lucide-react";
 import PageLoader from "@/components/ui/PageLoader";
 import { NewsCardSkeleton } from "@/components/ui/Skeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import Button from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
+import { cn } from "@/shared/cn";
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 400;
 
 export default function NewsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [news, setNews] = useState<NewsItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -48,9 +48,9 @@ export default function NewsPage() {
   // Redirect unauthenticated users after auth resolves.
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/login");
+      navigate("/login");
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const fetchNews = useCallback(
     async ({ silent = false } = {}) => {
@@ -140,23 +140,31 @@ export default function NewsPage() {
   }, [categories, news]);
 
   if (authLoading) {
-    return <PageLoader label="Checking session" />;
+    return <PageLoader label="Checking your session" />;
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="animate-fade-in space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Latest News</h1>
-          <p className="text-gray-600 mt-1">
-            {totalItems > 0
-              ? `${totalItems.toLocaleString()} AI-curated articles available`
-              : "Stay updated with AI-curated articles"}
-          </p>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-glow">
+              <Newspaper className="h-5 w-5" />
+            </span>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Your news</h1>
+              <p className="mt-0.5 text-slate-500">
+                {totalItems > 0
+                  ? `${totalItems.toLocaleString()} stories worth your time`
+                  : "Here's what's worth your time today."}
+              </p>
+            </div>
+          </div>
         </div>
         <Button
           variant="secondary"
-          icon={<RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />}
+          icon={<RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />}
           onClick={() => fetchNews({ silent: true })}
           loading={isRefreshing}
         >
@@ -165,54 +173,57 @@ export default function NewsPage() {
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search articles..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input pl-10"
-              aria-label="Search articles"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+      <div className="card flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search stories…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-10"
+            aria-label="Search stories"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:text-slate-600"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Filter className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="input w-full sm:w-auto"
-              aria-label="Filter by category"
+              className="input w-full appearance-none pl-10 pr-9 sm:w-52"
+              aria-label="Filter by topic"
             >
-              <option value="all">All Categories</option>
+              <option value="all">All topics</option>
               {categoryOptions.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
               ))}
             </select>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Clear
-              </Button>
-            )}
+            <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-slate-400" />
           </div>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm animate-fade-in">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        <div className="animate-fade-in flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <p className="flex-1">{error}</p>
           <Button variant="secondary" size="sm" onClick={() => fetchNews()}>
             Retry
@@ -228,12 +239,12 @@ export default function NewsPage() {
         </div>
       ) : news.length === 0 ? (
         <EmptyState
-          icon={<Newspaper className="w-7 h-7" />}
-          title={hasFilters ? "No articles match your filters" : "No articles found"}
+          icon={<Newspaper className="h-7 w-7" />}
+          title={hasFilters ? "Nothing matches your filters" : "No stories yet"}
           description={
             hasFilters
-              ? "Try adjusting your search or clearing the filters"
-              : "News will appear here once aggregation runs"
+              ? "Try a different search or clear the filters."
+              : "Stories will show up here as soon as we gather them."
           }
           action={
             hasFilters ? (
@@ -247,54 +258,66 @@ export default function NewsPage() {
         <>
           <div
             className={cn(
-              "space-y-4 stagger",
-              isLoading && "opacity-60 pointer-events-none transition-opacity duration-300"
+              "stagger space-y-4",
+              isLoading && "pointer-events-none opacity-60 transition-opacity duration-300"
             )}
             aria-busy={isLoading}
           >
             {news.map((item) => (
               <article
                 key={item.id}
-                className="card hover:shadow-md hover:border-brand-100 transition-all duration-300 group"
+                className="card card-hover group flex items-start gap-5"
               >
-                <div className="flex items-start justify-between gap-4">
-                  {item.image_url && (
-                    <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                      <Image
-                        src={item.image_url}
-                        alt={item.title}
-                        fill
-                        sizes="96px"
-                        loading="lazy"
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
+                {item.image_url && (
+                  <div className="relative hidden h-28 w-28 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:block">
+                    <img
+                      src={item.image_url}
+                      alt={item.title}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    {item.source && <span className="badge-brand">{item.source}</span>}
+                    {item.category && <span className="badge-green">{item.category}</span>}
+                    {item.news_type && <span className="badge-gray">{item.news_type}</span>}
+                    {item.reading_time_minutes ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                        <Clock className="h-3 w-3" />
+                        {item.reading_time_minutes} min read
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/title flex items-start gap-1 transition-colors hover:text-brand-600"
+                    >
+                      <span className="line-clamp-2">{item.title}</span>
+                      <ExternalLink className="mt-1 h-4 w-4 flex-shrink-0 -translate-x-1 opacity-0 transition-all duration-200 group-hover/title:translate-x-0 group-hover/title:opacity-100" />
+                    </a>
+                  </h2>
+
+                  {item.summary && (
+                    <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-slate-600">
+                      {item.summary}
+                    </p>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      {item.source && <span className="badge-brand">{item.source}</span>}
-                      {item.category && <span className="badge-green">{item.category}</span>}
-                      <span className="badge-gray">{item.news_type}</span>
-                      {item.reading_time_minutes ? (
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {item.reading_time_minutes} min read
-                        </span>
-                      ) : null}
-                    </div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-brand-600 transition-colors flex items-center gap-1 group/title"
-                      >
-                        <span className="line-clamp-2">{item.title}</span>
-                        <ExternalLink className="w-4 h-4 flex-shrink-0 opacity-0 -translate-x-1 group-hover/title:opacity-100 group-hover/title:translate-x-0 transition-all duration-200" />
-                      </a>
-                    </h2>
-                    {item.summary && <p className="text-gray-600 text-sm line-clamp-3">{item.summary}</p>}
-                    {item.author && <p className="text-xs text-gray-500 mt-2">By {item.author}</p>}
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                    {item.author && <span>By {item.author}</span>}
+                    {item.published_at && (
+                      <span>{new Date(item.published_at).toLocaleDateString()}</span>
+                    )}
+                    <span className="inline-flex items-center gap-1 text-brand-500">
+                      <Sparkles className="h-3 w-3" /> Summarized for you
+                    </span>
                   </div>
                 </div>
               </article>
@@ -316,14 +339,14 @@ export default function NewsPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<ChevronLeft className="w-4 h-4" />}
+                icon={<ChevronLeft className="h-4 w-4" />}
                 onClick={() => goToPage(page - 1)}
                 disabled={page === 1 || isLoading}
               >
                 Previous
               </Button>
-              <span className="text-sm text-gray-600 tabular-nums">
-                Page {page} of {totalPages} · {totalItems.toLocaleString()} items
+              <span className="text-sm text-slate-500 tabular-nums">
+                Page {page} of {totalPages} · {totalItems.toLocaleString()} stories
               </span>
               <Button
                 variant="secondary"
@@ -332,7 +355,7 @@ export default function NewsPage() {
                 disabled={page === totalPages || isLoading}
               >
                 Next
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           )}

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { cn } from "@/shared/cn";
 
 interface SkeletonProps {
   className?: string;
@@ -50,7 +50,7 @@ export function ListRowSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg animate-fade-in">
+        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg animate-fade-in">
           <div className="flex items-center gap-3">
             <Skeleton className="h-6 w-16 rounded-full" />
             <div className="space-y-2">

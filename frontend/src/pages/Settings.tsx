@@ -1,9 +1,8 @@
-"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { api, User, IngestionSource, SourceCreate, ApiError } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { api, User, IngestionSource, SourceCreate, ApiError } from "@/shared/api";
 import {
   Settings as SettingsIcon,
   Mail,
@@ -11,18 +10,17 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  ToggleLeft,
-  ToggleRight,
   Tag,
   Clock,
-  Check,
+  User as UserIcon,
+  Bell,
 } from "lucide-react";
 import PageLoader from "@/components/ui/PageLoader";
 import Button from "@/components/ui/Button";
 import { ListRowSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
-import { cn } from "@/lib/cn";
+import { cn } from "@/shared/cn";
 
 interface Category {
   id: number;
@@ -40,9 +38,33 @@ const EMPTY_SOURCE: SourceCreate = {
   is_active: true,
 };
 
+function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label="Toggle digest subscription"
+      onClick={onChange}
+      disabled={disabled}
+      className={cn(
+        "relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        checked ? "bg-brand-600" : "bg-slate-200"
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-300",
+          checked ? "translate-x-6" : "translate-x-1"
+        )}
+      />
+    </button>
+  );
+}
+
 export default function SettingsPage() {
   const { user, isAuthenticated, isLoading: authLoading, isAdmin, refreshUser, updateProfile } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -59,9 +81,9 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/login");
+      navigate("/login");
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   useEffect(() => {
     if (!isAdmin && activeTab === "sources") {
@@ -177,31 +199,39 @@ export default function SettingsPage() {
   };
 
   if (authLoading) {
-    return <PageLoader label="Checking session" />;
+    return <PageLoader label="Checking your session" />;
   }
 
   const TABS: { id: SettingsTab; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
-    { id: "profile", label: "Profile", icon: <SettingsIcon className="w-4 h-4" /> },
-    { id: "interests", label: "Interests", icon: <Tag className="w-4 h-4" /> },
-    { id: "sources", label: "Sources", icon: <Rss className="w-4 h-4" />, adminOnly: true },
+    { id: "profile", label: "Profile", icon: <UserIcon className="h-4 w-4" /> },
+    { id: "interests", label: "Topics", icon: <Tag className="h-4 w-4" /> },
+    { id: "sources", label: "Sources", icon: <Rss className="h-4 w-4" />, adminOnly: true },
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600 mt-1">Manage your account and preferences</p>
+    <div className="mx-auto max-w-4xl animate-fade-in space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-glow">
+          <SettingsIcon className="h-5 w-5" />
+        </span>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
+          <p className="mt-0.5 text-slate-500">Manage your account and your daily brief.</p>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
+      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
         {TABS.filter((tab) => !tab.adminOnly || isAdmin).map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-              activeTab === tab.id ? "bg-brand-100 text-brand-700" : "text-gray-600 hover:bg-gray-100"
+              "flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200",
+              activeTab === tab.id
+                ? "bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-soft"
+                : "text-slate-600 hover:bg-slate-100"
             )}
           >
             {tab.icon}
@@ -214,63 +244,52 @@ export default function SettingsPage() {
       {activeTab === "profile" && (
         <div className="space-y-6">
           <div className="card">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <SettingsIcon className="w-5 h-5" />
-              Profile
+            <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <UserIcon className="h-4 w-4" />
+              </span>
+              Your profile
             </h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm text-gray-600">Name</p>
-                  <p className="font-medium text-gray-900">{user?.name || "Not set"}</p>
-                </div>
+            <div className="divide-y divide-slate-100">
+              <div className="flex items-center justify-between py-3">
+                <p className="text-sm text-slate-500">Name</p>
+                <p className="font-medium text-slate-900">{user?.name || "Not set"}</p>
               </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium text-gray-900">{user?.email}</p>
-                </div>
+              <div className="flex items-center justify-between py-3">
+                <p className="text-sm text-slate-500">Email</p>
+                <p className="font-medium text-slate-900">{user?.email}</p>
               </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm text-gray-600">Role</p>
-                  <span className="badge badge-brand">{user?.role}</span>
-                </div>
+              <div className="flex items-center justify-between py-3">
+                <p className="text-sm text-slate-500">Role</p>
+                <span className="badge-brand">{user?.role}</span>
               </div>
             </div>
           </div>
 
-          {/* Subscription Section */}
+          {/* Subscription */}
           <div className="card">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Email Digest
+            <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <Mail className="h-4 w-4" />
+              </span>
+              Your daily brief
             </h2>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="font-medium text-gray-900">Daily Digest Subscription</p>
-                <p className="text-sm text-gray-600">Receive personalized news digests via email</p>
+                <p className="font-medium text-slate-900">Email me my brief</p>
+                <p className="text-sm text-slate-500">A short, friendly summary in your inbox</p>
               </div>
-              <button
-                onClick={handleToggleSubscription}
+              <Switch
+                checked={!!user?.digest_subscribed}
+                onChange={handleToggleSubscription}
                 disabled={pending === "subscription"}
-                className="flex items-center gap-2 text-brand-600 hover:text-brand-700 disabled:opacity-50 transition-all"
-                aria-label="Toggle digest subscription"
-                aria-pressed={user?.digest_subscribed}
-              >
-                {user?.digest_subscribed ? (
-                  <ToggleRight className="w-8 h-8" />
-                ) : (
-                  <ToggleLeft className="w-8 h-8" />
-                )}
-              </button>
+              />
             </div>
             {user?.digest_subscribed && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-sm text-gray-600">
-                  Frequency:{" "}
-                  <span className="font-medium text-gray-900">{user?.digest_frequency || "daily"}</span>
-                </p>
+              <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4 text-sm text-slate-500">
+                <Bell className="h-4 w-4 text-brand-500" />
+                Arrives{" "}
+                <span className="font-medium text-slate-900">{user?.digest_frequency || "daily"}</span>
               </div>
             )}
           </div>
@@ -280,21 +299,24 @@ export default function SettingsPage() {
       {/* Interests Tab */}
       {activeTab === "interests" && (
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Tag className="w-5 h-5" />
-            Your Interests
+          <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+              <Tag className="h-4 w-4" />
+            </span>
+            Topics you love
           </h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Select topics you care about. We&apos;ll personalize your news feed and digests based on these.
+          <p className="mb-5 text-sm text-slate-500">
+            Pick the subjects you care about — we&apos;ll shape your news feed and briefs around them.
           </p>
+
           {isLoading ? (
-            <div className="flex flex-wrap gap-2 mb-6" aria-busy="true" aria-label="Loading categories">
+            <div className="mb-6 flex flex-wrap gap-2" aria-busy="true" aria-label="Loading topics">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-9 w-24 rounded-full" />
               ))}
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="mb-6 flex flex-wrap gap-2">
               {categories.map((category) => {
                 const active = selectedInterests.includes(category.name);
                 return (
@@ -302,10 +324,10 @@ export default function SettingsPage() {
                     key={category.id}
                     onClick={() => toggleInterest(category.name)}
                     className={cn(
-                      "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                      "rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
                       active
-                        ? "bg-brand-600 text-white shadow-sm shadow-brand-600/30"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-soft"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     )}
                     aria-pressed={active}
                   >
@@ -315,10 +337,11 @@ export default function SettingsPage() {
               })}
             </div>
           )}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-            <p className="text-sm text-gray-500">{selectedInterests.length} interests selected</p>
+
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-400">{selectedInterests.length} topics selected</p>
             <Button size="sm" onClick={handleSaveInterests} loading={pending === "save-interests"}>
-              Save Interests
+              Save topics
             </Button>
           </div>
         </div>
@@ -327,36 +350,38 @@ export default function SettingsPage() {
       {/* Sources Tab */}
       {isAdmin && activeTab === "sources" && (
         <div className="card">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Rss className="w-5 h-5" />
-              Ingestion Sources
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <Rss className="h-4 w-4" />
+              </span>
+              Sources we follow
             </h2>
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<RefreshCw className="w-4 h-4" />}
+                icon={<RefreshCw className="h-4 w-4" />}
                 onClick={handleSyncDefaults}
                 loading={pending === "sync-defaults"}
               >
-                Sync Defaults
+                Sync defaults
               </Button>
               <Button
                 size="sm"
-                icon={<Plus className="w-4 h-4" />}
+                icon={<Plus className="h-4 w-4" />}
                 onClick={() => setShowAddSource((show) => !show)}
               >
-                {showAddSource ? "Cancel" : "Add Source"}
+                {showAddSource ? "Cancel" : "Add source"}
               </Button>
             </div>
           </div>
 
           {showAddSource && (
-            <form onSubmit={handleAddSource} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3 animate-fade-in">
+            <form onSubmit={handleAddSource} className="animate-fade-in mb-4 space-y-3 rounded-xl bg-slate-50 p-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Type</label>
                   <select
                     value={newSource.source_type}
                     onChange={(e) =>
@@ -370,7 +395,7 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
                   <input
                     type="text"
                     value={newSource.display_name}
@@ -382,7 +407,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-slate-700">
                   {newSource.source_type === "rss"
                     ? "RSS URL"
                     : newSource.source_type === "medium"
@@ -406,7 +431,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Button type="submit" size="sm" loading={pending === "add-source"}>
-                  Add Source
+                  Add source
                 </Button>
                 <Button
                   variant="secondary"
@@ -423,8 +448,8 @@ export default function SettingsPage() {
           {isLoading ? (
             <ListRowSkeleton rows={4} />
           ) : sources.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              No sources configured. Add one above or sync defaults.
+            <p className="py-8 text-center text-slate-500">
+              No sources configured yet. Add one above or sync the defaults.
             </p>
           ) : (
             <div className="space-y-2">
@@ -433,24 +458,23 @@ export default function SettingsPage() {
                 return (
                   <div
                     key={source.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100/70 transition-colors"
+                    className="flex items-center justify-between rounded-xl bg-slate-50 p-3 transition-colors hover:bg-slate-100/70"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span
-                        className={`badge ${
-                          source.source_type === "rss"
-                            ? "badge-brand"
-                            : "badge-green"
-                        }`}
+                        className={cn(
+                          "badge",
+                          source.source_type === "rss" ? "badge-brand" : "badge-green"
+                        )}
                       >
                         {source.source_type}
                       </span>
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">{source.display_name}</p>
-                        <p className="text-xs text-gray-500 truncate max-w-xs">{source.identifier}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-900">{source.display_name}</p>
+                        <p className="max-w-xs truncate text-xs text-slate-400">{source.identifier}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <Clock className="h-3 w-3" />
                             {source.total_fetches || 0} fetches
                           </span>
                           {source.consecutive_errors > 0 && (
@@ -459,21 +483,22 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-shrink-0 items-center gap-2">
                       <span
-                        className={`badge ${
+                        className={cn(
+                          "badge",
                           source.status === "active" ? "badge-green" : "badge-gray"
-                        }`}
+                        )}
                       >
                         {source.status}
                       </span>
                       <button
                         onClick={() => setConfirmDeleteId(source.id)}
                         disabled={deleting}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
                         aria-label={`Delete ${source.display_name}`}
                       >
-                        <Trash2 className={`w-4 h-4 ${deleting ? "animate-pulse" : ""}`} />
+                        <Trash2 className={cn("h-4 w-4", deleting && "animate-pulse")} />
                       </button>
                     </div>
                   </div>

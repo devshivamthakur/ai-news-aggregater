@@ -1,8 +1,7 @@
-"use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Info, X, XCircle } from "lucide-react";
-import { cn } from "@/lib/cn";
+import { cn } from "@/shared/cn";
 
 type ToastType = "success" | "error" | "info";
 
@@ -21,15 +20,15 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 const TOAST_STYLES: Record<ToastType, string> = {
-  success: "bg-green-50/95 border-green-200 text-green-800",
+  success: "bg-emerald-50/95 border-emerald-200 text-emerald-800",
   error: "bg-red-50/95 border-red-200 text-red-800",
-  info: "bg-white/95 border-gray-200 text-gray-800",
+  info: "bg-white/95 border-slate-200 text-slate-800",
 };
 
 const TOAST_ICONS: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />,
-  error: <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />,
-  info: <Info className="w-5 h-5 text-brand-600 flex-shrink-0" />,
+  success: <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600" />,
+  error: <XCircle className="h-5 w-5 flex-shrink-0 text-red-600" />,
+  info: <Info className="h-5 w-5 flex-shrink-0 text-brand-600" />,
 };
 
 const DURATION_MS = 4000;
@@ -79,18 +78,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={toast.id}
             role="status"
             className={cn(
-              "toast-in flex items-start gap-3 p-4 rounded-xl border shadow-lg backdrop-blur-md",
+              "toast-in flex items-start gap-3 rounded-2xl border p-4 shadow-lg backdrop-blur-xl",
               TOAST_STYLES[toast.type]
             )}
           >
             {TOAST_ICONS[toast.type]}
-            <p className="flex-1 text-sm font-medium leading-snug pt-0.5">{toast.message}</p>
+            <p className="flex-1 pt-0.5 text-sm font-medium leading-snug">{toast.message}</p>
             <button
               onClick={() => dismiss(toast.id)}
-              className="p-1 rounded-md hover:bg-black/5 transition-colors flex-shrink-0"
+              className="rounded-md p-1 transition-colors hover:bg-black/5 flex-shrink-0"
               aria-label="Dismiss notification"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         ))}

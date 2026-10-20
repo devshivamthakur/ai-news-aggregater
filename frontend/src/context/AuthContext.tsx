@@ -1,7 +1,6 @@
-"use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { api, User, TokenPairOut } from "@/lib/api";
+import { api, User, TokenPairOut } from "@/shared/api";
 
 interface AuthContextType {
   user: User | null;
