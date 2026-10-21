@@ -23,6 +23,19 @@ class BlogPost(BaseModel):
     summary: str | None = None
 
 
+class RepoItem(BaseModel):
+    """Model for a trending GitHub repository."""
+    title: str
+    url: str
+    published_at: datetime
+    source: str = "GitHub Trending"
+    description: str
+    stars: int = 0
+    language: str | None = None
+    topics: list[str] = []
+    author: str | None = None
+
+
 class Transcript(BaseModel):
     """Model for YouTube video transcript."""
     text: str

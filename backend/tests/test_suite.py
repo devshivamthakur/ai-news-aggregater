@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 
+UTC = timezone.utc  # `datetime.now(UTC)` alias for convenience
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker

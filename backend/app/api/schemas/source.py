@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class SourceCreate(BaseModel):
-    source_type: str = Field(pattern="^(rss|youtube|medium|twitter|reddit|podcast)$")
+    source_type: str = Field(pattern="^(rss|youtube|medium|github|twitter|reddit|podcast)$")
     display_name: str = Field(min_length=1, max_length=512)
     identifier: str = Field(min_length=1, max_length=2048)
     description: str | None = None
@@ -67,3 +67,4 @@ class SyncDefaultsResult(BaseModel):
     rss_feed_urls: int
     youtube_channels: int
     medium_sources: int
+    github_sources: int = 0

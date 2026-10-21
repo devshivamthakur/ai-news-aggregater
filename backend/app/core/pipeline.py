@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from app.config.settings import settings
 from app.email.sender import email_sender
 from app.fetchers.blog_fetcher import rss_scraper
-from app.fetchers.models import BlogPost, ChannelVideo
+from app.fetchers.github_fetcher import github_scraper
+from app.fetchers.models import BlogPost, ChannelVideo, RepoItem
 from app.fetchers.video_fetcher import youtube_scraper
 from app.logging.logger import logger
 from app.models import NewsType
@@ -96,8 +97,56 @@ async def _fetch_youtube_channels(
     return videos
 
 
+async def _fetch_github_trending(
+    github_rows: list,
+) -> list[RepoItem]:
+    """Fetch trending AI repositories from the GitHub Search API.
+
+    All active GitHub sources share one trending query, so we run a single
+    fetch (bounded by ``AGGREGATION_GITHUB_LIMIT``) regardless of row count.
+    """
+    if not github_rows:
+        return []
+
+    limit = settings.aggregation_github_limit
+    tasks = [
+        asyncio.to_thread(
+            github_scraper.fetch_trending,
+            limit=limit,
+            lookback_days=settings.aggregation_github_lookback_days,
+            topics=settings.github_ai_topics,
+            token=settings.github_token,
+        )
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    repos: list[RepoItem] = []
+    for src, result in zip(github_rows, results, strict=False):
+        if isinstance(result, Exception):
+            logger.error("Failed to fetch GitHub trending repos: %s", result)
+        elif isinstance(result, list):
+            for r in result:
+                repos.append(r.model_copy(update={"source": src.display_name}))
+    return repos
+
+
+def _get_item_body(news_item) -> str:
+    """Extract the text body to send to the analyzer for a news item.
+
+    Blog posts send their article content, repos send their composed
+    description (description + stars/language/topics), videos send their
+    transcript (falling back to the description). Pydantic models raise
+    ``AttributeError`` for missing attributes, so type-check instead of
+    relying on ``or``-chains.
+    """
+    if isinstance(news_item, BlogPost):
+        return news_item.content or ""
+    if isinstance(news_item, RepoItem):
+        return news_item.description or ""
+    return news_item.transcript or news_item.description or ""
+
+
 async def _analyze_all_content(
-    all_news: list[BlogPost | ChannelVideo],
+    all_news: list[BlogPost | ChannelVideo | RepoItem],
 ) -> list[tuple[str, str, str] | BaseException]:
     """Analyze all news items as one parallel batch (instead of one-by-one)."""
     if not all_news:
@@ -105,11 +154,7 @@ async def _analyze_all_content(
 
     items = []
     for news_item in all_news:
-        body = (
-            news_item.content
-            if isinstance(news_item, BlogPost)
-            else (news_item.transcript or news_item.description or "")
-        )
+        body = _get_item_body(news_item)
         items.append(
             (
                 news_item.title,
@@ -124,8 +169,8 @@ async def _analyze_all_content(
 
 
 def _filter_new_items(
-    all_news: list[BlogPost | ChannelVideo],
-) -> list[BlogPost | ChannelVideo]:
+    all_news: list[BlogPost | ChannelVideo | RepoItem],
+) -> list[BlogPost | ChannelVideo | RepoItem]:
     """Drop items whose URL already exists in the news table.
 
     Runs in its own thread (call via ``asyncio.to_thread``) with its own DB
@@ -158,8 +203,8 @@ def _filter_new_items(
         db.close()
 
 
-def _get_active_source_rows() -> tuple[list, list, list]:
-    """Sync helper: fetch active RSS / YouTube / Medium source rows.
+def _get_active_source_rows() -> tuple[list, list, list, list]:
+    """Sync helper: fetch active RSS / YouTube / Medium / GitHub source rows.
 
     Runs in its own thread (call via ``asyncio.to_thread``) so the blocking
     DB queries never touch the event loop. Columns used by the fetchers
@@ -172,13 +217,14 @@ def _get_active_source_rows() -> tuple[list, list, list]:
         rss_rows = source_svc.get_active_rss()
         yt_rows = source_svc.get_active_youtube()
         medium_rows = source_svc.get_active_medium()
-        return rss_rows, yt_rows, medium_rows
+        github_rows = source_svc.get_active_github()
+        return rss_rows, yt_rows, medium_rows, github_rows
     finally:
         db.close()
 
 
 def _store_news_items(
-    all_news: list[BlogPost | ChannelVideo],
+    all_news: list[BlogPost | ChannelVideo | RepoItem],
     analysis_results: list,
     current_hour: int,
     current_time: datetime,
@@ -200,14 +246,12 @@ def _store_news_items(
                     logger.error("Failed to analyze news: %s", analysis)
                     continue
                 summary, category = analysis.summary, analysis.category
-                body = (
-                    news_item.content
-                    if isinstance(news_item, BlogPost)
-                    else (news_item.transcript or news_item.description or "")
-                )
+                body = _get_item_body(news_item)
                 news_type = (
                     NewsType.VIDEO
                     if isinstance(news_item, ChannelVideo)
+                    else NewsType.REPOSITORY
+                    if isinstance(news_item, RepoItem)
                     else NewsType.ARTICLE
                 )
                 news_record = NewsService.create_news(
@@ -415,11 +459,11 @@ async def aggregate_and_email() -> None:
             lookback,
         )
 
-        rss_rows, yt_rows, medium_rows = await asyncio.to_thread(
+        rss_rows, yt_rows, medium_rows, github_rows = await asyncio.to_thread(
             _get_active_source_rows
         )
 
-        if not rss_rows and not yt_rows and not medium_rows:
+        if not rss_rows and not yt_rows and not medium_rows and not github_rows:
             logger.warning(
                 "No active ingestion sources in database. "
                 "Run POST /api/v1/sources/sync-defaults or add sources."
@@ -442,17 +486,24 @@ async def aggregate_and_email() -> None:
             if yt_rows
             else asyncio.sleep(0, result=[])
         )
+        github_task = (
+            _fetch_github_trending(github_rows)
+            if github_rows
+            else asyncio.sleep(0, result=[])
+        )
 
-        all_rss, all_medium, all_youtube = await asyncio.gather(
+        all_rss, all_medium, all_youtube, all_github = await asyncio.gather(
             rss_task,
             medium_task,
             youtube_task,
+            github_task,
         )
 
-        all_news: list[BlogPost | ChannelVideo] = []
+        all_news: list[BlogPost | ChannelVideo | RepoItem] = []
         all_news.extend(all_rss)
         all_news.extend(all_medium)
         all_news.extend(all_youtube)
+        all_news.extend(all_github)
 
         logger.info("Total fetched items: %s", len(all_news))
 

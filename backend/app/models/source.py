@@ -30,6 +30,7 @@ class SourceType(enum.StrEnum):
     RSS = "rss"
     YOUTUBE = "youtube"
     MEDIUM = "medium"
+    GITHUB = "github"
     TWITTER = "twitter"
     REDDIT = "reddit"
     PODCAST = "podcast"

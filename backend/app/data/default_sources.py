@@ -44,3 +44,10 @@ DEFAULT_MEDIUM_SOURCES: list[tuple[str, str]] = [
     # ("https://medium.com/feed/@analyticsvidhya", "Analytics Vidhya"),
     # ("https://medium.com/feed/@machinelearningworld", "Machine Learning World"),
 ]
+
+# GitHub trending "sources" (identifier, display_name).
+# The identifier is a logical key (not a URL); the trending query itself is
+# controlled by GITHUB_AI_TOPICS / AGGREGATION_GITHUB_LOOKBACK_DAYS settings.
+DEFAULT_GITHUB_SOURCES: list[tuple[str, str]] = [
+    ("trending/ai", "GitHub Trending AI Repos"),
+]

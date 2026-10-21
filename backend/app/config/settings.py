@@ -199,6 +199,21 @@ class Settings(BaseModel):
     # Aggregation
     aggregation_lookback_hours: int = int(os.getenv("AGGREGATION_LOOKBACK_HOURS", "24"))
     aggregation_rss_per_feed_limit: int = int(os.getenv("AGGREGATION_RSS_PER_FEED_LIMIT", "20"))
+
+    # GitHub trending repositories (daily AI-topic news items)
+    github_token: str | None = os.getenv("GITHUB_TOKEN", None)
+    github_ai_topics: tuple[str, ...] = tuple(
+        dict.fromkeys(
+            t.strip().lower()
+            for t in os.getenv(
+                "GITHUB_AI_TOPICS",
+                "ai,llm,machine-learning,deep-learning,agents",
+            ).split(",")
+            if t.strip()
+        )
+    )
+    aggregation_github_limit: int = int(os.getenv("AGGREGATION_GITHUB_LIMIT", "5"))
+    aggregation_github_lookback_days: int = int(os.getenv("AGGREGATION_GITHUB_LOOKBACK_DAYS", "7"))
     sync_default_sources_on_startup: bool = (
         os.getenv("SYNC_DEFAULT_SOURCES_ON_STARTUP", "false").lower() == "true"
     )

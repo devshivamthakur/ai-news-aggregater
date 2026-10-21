@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.data.default_sources import (
+    DEFAULT_GITHUB_SOURCES,
     DEFAULT_MEDIUM_SOURCES,
     DEFAULT_RSS_FEEDS,
     DEFAULT_YOUTUBE_CHANNELS,
@@ -81,6 +82,17 @@ class IngestionSourceService:
             .all()
         )
 
+    def get_active_github(self) -> list[IngestionSource]:
+        """Get all active GitHub trending sources."""
+        return (
+            self._db.query(IngestionSource)
+            .filter(
+                IngestionSource.is_active.is_(True),
+                IngestionSource.source_type == SourceType.GITHUB.value,
+            )
+            .all()
+        )
+
     def sync_defaults(self) -> dict[str, Any]:
         """Upsert rows from `default_sources` (idempotent).
 
@@ -99,6 +111,8 @@ class IngestionSourceService:
             all_identifiers.append(channel_id)
         for url, _ in DEFAULT_MEDIUM_SOURCES:
             all_identifiers.append(url)
+        for identifier, _ in DEFAULT_GITHUB_SOURCES:
+            all_identifiers.append(identifier)
 
         # Fetch all existing sources in a single query
         existing_sources = {
@@ -170,6 +184,33 @@ class IngestionSourceService:
                 created += 1
                 medium_created += 1
 
+        # Sync GitHub trending sources
+        github_created = 0
+        for identifier, display_name in DEFAULT_GITHUB_SOURCES:
+            row = existing_sources.get(identifier)
+            if row:
+                if row.display_name != display_name or not row.is_active:
+                    row.display_name = display_name
+                    row.is_active = True
+                    updated += 1
+            else:
+                self._db.add(
+                    IngestionSource(
+                        source_type=SourceType.GITHUB.value,
+                        display_name=display_name,
+                        identifier=identifier,
+                        description=(
+                            "Trending AI repositories on GitHub, refreshed daily "
+                            "(query topics configurable via GITHUB_AI_TOPICS)"
+                        ),
+                        is_active=True,
+                        status=SourceStatus.ACTIVE,
+                        fetch_interval_minutes=1440,  # once a day is enough for trending
+                    )
+                )
+                created += 1
+                github_created += 1
+
         # Deactivate any previously-seeded sources that are now confirmed dead
         # (e.g. 404/403 feeds, deleted YouTube channels). sync_defaults only
         # upserts/activates from defaults, so without this step stale rows would
@@ -193,11 +234,13 @@ class IngestionSourceService:
 
         self._db.commit()
         logger.info(
-            "Synced default ingestion sources: created=%s updated=%s deactivated=%s (medium=%s)",
+            "Synced default ingestion sources: created=%s updated=%s deactivated=%s "
+            "(medium=%s github=%s)",
             created,
             updated,
             deactivated,
             medium_created,
+            github_created,
         )
         return {
             "created": created,
@@ -205,6 +248,7 @@ class IngestionSourceService:
             "rss_feed_urls": sum(len(u) for u in DEFAULT_RSS_FEEDS.values()),
             "youtube_channels": len(DEFAULT_YOUTUBE_CHANNELS),
             "medium_sources": medium_created,
+            "github_sources": len(DEFAULT_GITHUB_SOURCES),
         }
 
     def create(
@@ -221,9 +265,14 @@ class IngestionSourceService:
         max_items_per_fetch: int = 50,
     ) -> IngestionSource:
         """Create a new ingestion source."""
-        valid_types = {SourceType.RSS.value, SourceType.YOUTUBE.value, SourceType.MEDIUM.value}
+        valid_types = {
+            SourceType.RSS.value,
+            SourceType.YOUTUBE.value,
+            SourceType.MEDIUM.value,
+            SourceType.GITHUB.value,
+        }
         if source_type not in valid_types:
-            raise ValueError(f"source_type must be one of: {', '.join(valid_types)}")
+            raise ValueError(f"source_type must be one of: {', '.join(sorted(valid_types))}")
 
         row = IngestionSource(
             source_type=source_type,

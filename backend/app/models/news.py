@@ -32,6 +32,7 @@ class NewsType(enum.StrEnum):
     BLOG_POST = "blog_post"
     PODCAST = "podcast"
     RESEARCH_PAPER = "research_paper"
+    REPOSITORY = "repository"
 
 
 class NewsStatus(enum.StrEnum):
